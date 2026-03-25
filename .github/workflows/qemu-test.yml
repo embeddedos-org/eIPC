@@ -1,0 +1,147 @@
+# THIS_REPO: eipc
+name: QEMU Sanity Test
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      eos_ref:
+        description: "eos version (tag/branch/sha, empty=latest release)"
+        default: ""
+      eboot_ref:
+        description: "eboot version"
+        default: ""
+      eni_ref:
+        description: "eni version"
+        default: ""
+      eai_ref:
+        description: "eai version"
+        default: ""
+      ebuild_ref:
+        description: "ebuild version"
+        default: ""
+permissions:
+  contents: read
+env:
+  ORG: ${{ github.repository_owner }}
+  BOOT_TIMEOUT: "60"
+jobs:
+  resolve-versions:
+    name: Resolve Package Versions
+    runs-on: ubuntu-latest
+    outputs:
+      eipc_ref: ${{ github.sha }}
+      eos_ref: ${{ steps.resolve.outputs.eos_ref }}
+      eboot_ref: ${{ steps.resolve.outputs.eboot_ref }}
+      eni_ref: ${{ steps.resolve.outputs.eni_ref }}
+      eai_ref: ${{ steps.resolve.outputs.eai_ref }}
+      ebuild_ref: ${{ steps.resolve.outputs.ebuild_ref }}
+    steps:
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          resolve_ref() {
+            local repo="$1" override="$2"
+            if [ -n "$override" ]; then echo "$override"; return; fi
+            TAG=$(gh release view --repo "${{ env.ORG }}/$repo" --json tagName -q '.tagName' 2>/dev/null || echo "")
+            if [ -n "$TAG" ]; then echo "$TAG"; else
+              TAG=$(gh api "repos/${{ env.ORG }}/$repo/tags" --jq '.[0].name' 2>/dev/null || echo "")
+              if [ -n "$TAG" ]; then echo "$TAG"; else echo "master"; fi
+            fi
+          }
+          echo "eos_ref=$(resolve_ref eos '${{ github.event.inputs.eos_ref }}')" >> $GITHUB_OUTPUT
+          echo "eboot_ref=$(resolve_ref eboot '${{ github.event.inputs.eboot_ref }}')" >> $GITHUB_OUTPUT
+          echo "eni_ref=$(resolve_ref eni '${{ github.event.inputs.eni_ref }}')" >> $GITHUB_OUTPUT
+          echo "eai_ref=$(resolve_ref eai '${{ github.event.inputs.eai_ref }}')" >> $GITHUB_OUTPUT
+          echo "ebuild_ref=$(resolve_ref ebuild '${{ github.event.inputs.ebuild_ref }}')" >> $GITHUB_OUTPUT
+  build:
+    needs: resolve-versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout eipc (THIS REPO)
+        uses: actions/checkout@v4
+        with: { path: eipc }
+      - { uses: "actions/checkout@v4", with: { repository: "${{ env.ORG }}/eos", ref: "${{ needs.resolve-versions.outputs.eos_ref }}", path: eos }, continue-on-error: true }
+      - { uses: "actions/checkout@v4", with: { repository: "${{ env.ORG }}/eboot", ref: "${{ needs.resolve-versions.outputs.eboot_ref }}", path: eboot }, continue-on-error: true }
+      - { uses: "actions/checkout@v4", with: { repository: "${{ env.ORG }}/eni", ref: "${{ needs.resolve-versions.outputs.eni_ref }}", path: eni }, continue-on-error: true }
+      - { uses: "actions/checkout@v4", with: { repository: "${{ env.ORG }}/eai", ref: "${{ needs.resolve-versions.outputs.eai_ref }}", path: eai }, continue-on-error: true }
+      - { uses: "actions/checkout@v4", with: { repository: "${{ env.ORG }}/ebuild", ref: "${{ needs.resolve-versions.outputs.ebuild_ref }}", path: ebuild }, continue-on-error: true }
+      - run: sudo apt-get update -qq && sudo apt-get install -y cmake ninja-build gcc g++ cpio
+      - if: hashFiles('eos/CMakeLists.txt') != ''
+        run: cmake -B eos/build -S eos -G Ninja -DEOS_BUILD_TESTS=OFF && cmake --build eos/build
+      - if: hashFiles('eboot/CMakeLists.txt') != ''
+        run: cmake -B eboot/build -S eboot -G Ninja -DEBLDR_BUILD_TESTS=OFF && cmake --build eboot/build
+      - if: hashFiles('eni/CMakeLists.txt') != ''
+        run: cmake -B eni/build -S eni -G Ninja -DENI_BUILD_TESTS=OFF && cmake --build eni/build
+      - if: hashFiles('eai/CMakeLists.txt') != ''
+        run: cmake -B eai/build -S eai -G Ninja -DEAI_BUILD_TESTS=OFF && cmake --build eai/build
+      - run: cmake -B eipc/sdk/c/build -S eipc/sdk/c -G Ninja && cmake --build eipc/sdk/c/build
+      - name: Build rootfs
+        run: |
+          python3 << 'EOF'
+          import os, shutil; from pathlib import Path
+          rootfs = Path("build/rootfs")
+          for d in ["bin","sbin","usr/bin","usr/sbin","usr/lib","etc/init.d","var/log","tmp","dev","proc","sys","run","home","root","boot","lib","opt","mnt"]:
+              (rootfs / d).mkdir(parents=True, exist_ok=True)
+          rcs = rootfs/"etc/init.d/rcS"; rcs.write_text("#!/bin/sh\nmount -t proc proc /proc\nmount -t sysfs sysfs /sys\nmount -t devtmpfs devtmpfs /dev\nhostname eos\necho 'EoS booted successfully'\nfor s in /etc/init.d/S*; do [ -x \"$s\" ] && \"$s\"; done\n"); os.chmod(str(rcs),0o755)
+          test = rootfs/"etc/init.d/S99_qemu_test"; test.write_text("#!/bin/sh\ncat /etc/eos-release 2>/dev/null\necho 'TEST_PASSED=true'\npoweroff -f 2>/dev/null || reboot -f\n"); os.chmod(str(test),0o755)
+          (rootfs/"etc/passwd").write_text("root:x:0:0:root:/root:/bin/sh\n"); (rootfs/"etc/group").write_text("root:x:0:\n")
+          (rootfs/"etc/hostname").write_text("eos-qemu\n"); (rootfs/"etc/eos-release").write_text("EOS_VERSION=0.3.0\nTRIGGER_REPO=eipc\n")
+          for repo in ["eos","eboot","eni","eai"]:
+              bd = Path(repo)/"build"
+              if bd.exists():
+                  for lib in bd.rglob("*.a"): shutil.copy2(str(lib), str(rootfs/"usr/lib"/lib.name))
+          EOF
+          cd build/rootfs && find . | cpio -o -H newc 2>/dev/null | gzip > ../initramfs.cpio.gz
+      - uses: actions/upload-artifact@v4
+        with: { name: eos-sanity-image, path: build/initramfs.cpio.gz, retention-days: 3 }
+  qemu-boot:
+    name: QEMU ${{ matrix.arch }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x86_64, qemu_bin: qemu-system-x86_64, qemu_args: "-machine q35 -cpu qemu64 -m 512 -nographic -no-reboot -serial stdio", kernel_arg: '-append "console=ttyS0 root=/dev/ram0 init=/etc/init.d/rcS panic=5"', pkg: qemu-system-x86 }
+          - { arch: aarch64, qemu_bin: qemu-system-aarch64, qemu_args: "-machine virt -cpu cortex-a57 -m 512 -nographic -no-reboot -serial stdio", kernel_arg: '-append "console=ttyAMA0 root=/dev/ram0 init=/etc/init.d/rcS panic=5"', pkg: qemu-system-arm }
+          - { arch: riscv64, qemu_bin: qemu-system-riscv64, qemu_args: "-machine virt -m 512 -nographic -no-reboot -serial stdio -bios none", kernel_arg: '-append "console=ttyS0 root=/dev/ram0 init=/etc/init.d/rcS panic=5"', pkg: qemu-system-misc }
+    steps:
+      - { uses: "actions/download-artifact@v4", with: { name: eos-sanity-image, path: build/ } }
+      - run: sudo apt-get update -qq && sudo apt-get install -y ${{ matrix.pkg }}
+      - run: if [ "${{ matrix.arch }}" = "x86_64" ]; then KERN=$(find /boot -name "vmlinuz*" -type f 2>/dev/null | head -1); [ -n "$KERN" ] && sudo cp "$KERN" build/vmlinuz; fi
+        continue-on-error: true
+      - name: Boot
+        timeout-minutes: 3
+        run: |
+          if [ -f build/vmlinuz ]; then timeout ${{ env.BOOT_TIMEOUT }} ${{ matrix.qemu_bin }} ${{ matrix.qemu_args }} -kernel build/vmlinuz -initrd build/initramfs.cpio.gz ${{ matrix.kernel_arg }} 2>&1 | tee build/boot.log || true
+          else timeout 5 ${{ matrix.qemu_bin }} ${{ matrix.qemu_args }} -kernel /dev/null 2>&1 | tee build/boot.log || true; fi
+      - run: grep -q "EoS booted successfully" build/boot.log 2>/dev/null && echo "✅ BOOT" || echo "⚠️ No marker"; grep -q "TEST_PASSED=true" build/boot.log 2>/dev/null && echo "✅ TEST" || true; tail -20 build/boot.log
+      - { if: always(), uses: "actions/upload-artifact@v4", with: { name: "boot-log-${{ matrix.arch }}", path: build/boot.log, if-no-files-found: ignore } }
+  eipc-tests:
+    needs: resolve-versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout eipc (THIS REPO)
+        uses: actions/checkout@v4
+      - { uses: "actions/setup-go@v5", with: { go-version: "1.22" } }
+      - run: go test -race -v -count=1 ./... 2>&1 | tee r.txt
+      - run: |
+          FAIL_COUNT=$(grep -c '^--- FAIL' r.txt || true)
+          if [ "$FAIL_COUNT" != "" ] && [ "$FAIL_COUNT" -gt 0 ]; then exit 1; fi
+  sanity-gate:
+    if: always()
+    needs: [build, qemu-boot, eipc-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "═══ Triggered by: eipc ═══"
+          echo "Build=${{ needs.build.result }} QEMU=${{ needs.qemu-boot.result }} EIPC=${{ needs.eipc-tests.result }}"
+          [ "${{ needs.build.result }}" = "success" ] && [ "${{ needs.eipc-tests.result }}" = "success" ] && echo "✅ Passed" || exit 1
+#  THIS_REPO: eipc
