@@ -1,871 +1,186 @@
-# EIPC
+# EIPC — Embedded Inter-Process Communication
 
-**Embedded IPC for secure, real-time communication between ENI and EAI**
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)](https://github.com/embeddedos-org/eipc)
+
+**Secure, real-time IPC framework for communication between ENI (Neural Interface) and EAI (AI Layer)**
 
 ```text
-ENI ==>> EIPC ==>> EAI
+ENI ══▶ EIPC ══▶ EAI
 ```
 
-EIPC is a **standalone, cross-platform, security-enhanced IPC framework** designed for:
-
-* **ENI** — Neural Interface Adapter
-* **EAI** — AI Layer
-* embedded and industrial systems
-* real-time local communication
-* long-term support (LTS) deployments
-
-It provides a **portable core**, **OS-specific transports**, and **security services** for safe, deterministic, low-latency system communication.
+EIPC is a **standalone, cross-platform, security-enhanced IPC framework** for embedded and industrial systems with pluggable transports and built-in security services.
 
 ---
 
-## Overview
+## Features
 
-EIPC exists to solve the core integration problem in intelligent embedded systems:
-
-> **How do ENI and EAI communicate securely, predictably, and efficiently across device classes and operating systems?**
-
-EIPC provides a layered answer:
-
-* **IPC for speed**
-* **eventing for scale**
-* **APIs for external integration**
-* **security services for trust, policy, and auditability**
+- **Real-time capable** — bounded queues, priority lanes, timeout-aware delivery
+- **Security-enhanced** — peer auth, capability authorization, HMAC integrity, replay protection
+- **Cross-platform** — Linux (amd64/arm64/armv7), macOS (amd64/arm64), Windows (amd64/arm64)
+- **Pluggable transports** — TCP, Unix domain sockets, Windows named pipes, shared memory
+- **Auditable** — JSON-line audit logging with full request tracing
+- **Policy engine** — three-tier action classification (safe/controlled/restricted)
+- **Zero external dependencies** — pure Go standard library
+- **LTS-friendly** — versioned protocol with compatibility guarantees
 
 ---
 
-## Design Goals
-
-EIPC is built to be:
-
-* **real-time capable**
-* **OS-agnostic at the core**
-* **embedded-friendly**
-* **secure by design**
-* **scalable from minimal to framework systems**
-* **stable for LTS deployments**
-
----
-
-# Architecture
-
-## Core communication model
+## Architecture
 
 ```text
-ENI
- ↓
-[ Event / Intent Layer ]
- ↓
-[ EIPC ]
- ↓
-EAI (Agent / Runtime / Tools)
-```
-
-EIPC is the secure communication layer between ENI and EAI.
-
----
-
-## Expanded secure architecture
-
-```text
-ENI Service
-   ↓
-EIPC Client
-   ↓
-Secure Local Transport
-   ↓
-EIPC Router / Broker (optional)
-   ↓
-EAI Service / Policy Engine / Tool Executor
-```
-
-For minimal deployments, EIPC can be direct client/server.
-
-For framework or industrial deployments, EIPC can run with a local secure broker and service registry.
-
----
-
-# Why EIPC
-
-General IPC mechanisms such as raw sockets, DBus, or generic RPC frameworks are useful, but EIPC is built specifically for:
-
-* low-latency embedded communication
-* deterministic control paths
-* strong local trust boundaries
-* capability-based authorization
-* policy-controlled tool execution
-* long-lived internal protocol compatibility
-
----
-
-# Key Benefits
-
-## 1. Stable Internal Contract
-
-EIPC defines a canonical message model for:
-
-* intents
-* feature streams
-* tool requests
-* acknowledgements
-* policy results
-* audit events
-* service health and heartbeat
-
-## 2. Real-Time Control
-
-EIPC is designed for:
-
-* bounded queues
-* local-only transport
-* priority lanes
-* timeout-aware delivery
-* minimal protocol overhead
-
-## 3. Security-Enhanced Services
-
-EIPC includes:
-
-* authenticated peers
-* capability-scoped authorization
-* message integrity
-* replay protection
-* service registration
-* audit logging
-* policy enforcement
-
-## 4. Cross-Platform Portability
-
-EIPC is designed with:
-
-* **portable core**
-* **pluggable transport backends**
-* **OS-specific optimizations**
-
-## 5. LTS-Friendly Evolution
-
-EIPC controls:
-
-* protocol versioning
-* compatibility guarantees
-* deprecation policy
-* security model evolution
-* audit semantics
-
----
-
-# Platform Strategy
-
-## Core + Adapters
-
-EIPC is split into:
-
-* **portable core**
-* **platform-specific transport and runtime adapters**
-
-```text
-eipc/
-├── core/
-├── protocol/
-├── security/
-├── runtime/
-├── transport/
-│   ├── unix/
-│   ├── windows/
-│   ├── tcp/
-│   └── shm/
-├── services/
-└── sdk/
+┌──────────────────────────────────────────────┐
+│                 Application                   │
+├─────────────┬─────────────┬──────────────────┤
+│  core/      │  services/  │  security/       │
+│  Message    │  Broker     │  Authenticator   │
+│  Router     │  Registry   │  Capability      │
+│  Endpoint   │  Policy     │  HMAC Integrity  │
+│             │  Audit      │  ReplayTracker   │
+│             │  Health     │  Keyring         │
+├─────────────┴─────────────┴──────────────────┤
+│               protocol/                       │
+│  Frame · Codec · Header                      │
+├──────────────────────────────────────────────┤
+│               transport/                      │
+│  TCP · Unix · Windows Pipe · Shared Memory   │
+└──────────────────────────────────────────────┘
 ```
 
 ---
 
-## Supported Platforms
+## Quick Start
 
-EIPC can be designed to run on:
+### Server
 
-* **Linux** — Ubuntu, embedded Linux, EoS
-* **Windows**
-* **macOS** for development and testing
-* **containers** such as Docker or Kubernetes
-* other platforms via transport adapters
+```go
+package main
 
----
+import (
+    "log"
+    "github.com/embeddedos-org/eipc/core"
+    "github.com/embeddedos-org/eipc/protocol"
+    "github.com/embeddedos-org/eipc/transport/tcp"
+)
 
-## Platform Capability Matrix
-
-| Feature             | Linux | Windows | macOS | Containers |
-| ------------------- | ----: | ------: | ----: | ---------: |
-| Core protocol       |     ✅ |       ✅ |     ✅ |          ✅ |
-| Local IPC           |     ✅ |       ✅ |     ✅ |         ⚠️ |
-| Shared memory       |     ✅ |      ⚠️ |    ⚠️ |          ❌ |
-| Real-time tuning    |     ✅ |      ⚠️ |     ❌ |          ❌ |
-| Full security model |     ✅ |       ✅ |     ✅ |          ✅ |
-
----
-
-## Performance Reality
-
-Cross-platform does not mean equal performance.
-
-| Platform        | Expected performance                        |
-| --------------- | ------------------------------------------- |
-| EoS / Linux | Best                                        |
-| Ubuntu / Linux  | Very strong                                 |
-| Windows         | Good                                        |
-| Containers      | Good for development and distributed setups |
-
-> EIPC is portable by design, but Linux-class systems remain the strongest target for real-time embedded deployments.
-
----
-
-# Communication Model
-
-EIPC supports a layered communication strategy.
-
-## Primary: Local IPC
-
-Best for:
-
-* embedded systems
-* low-latency communication
-* ENI-Min ↔ EAI-Min
-* deterministic real-time paths
-
-Supported implementations:
-
-* Unix domain sockets
-* named pipes
-* loopback gRPC where appropriate
-* shared memory for advanced cases
-
----
-
-## Secondary: Event Bus
-
-Best for:
-
-* framework systems
-* multiple consumers
-* observability and analytics
-* industrial fan-out
-
-Supported styles:
-
-* internal lightweight event bus
-* MQTT integration
-* NATS integration
-
----
-
-## External / Distributed: APIs
-
-Best for:
-
-* cross-device communication
-* remote orchestration
-* cloud integration
-* external tools
-
-Supported styles:
-
-* gRPC
-* REST APIs
-
----
-
-# Recommended Default Usage
-
-## Minimal deployments
-
-```text
-ENI → EIPC → EAI
+func main() {
+    t := tcp.New()
+    t.Listen("127.0.0.1:9090")
+    defer t.Close()
+    for {
+        conn, _ := t.Accept()
+        ep := core.NewServerEndpoint(conn, protocol.DefaultCodec(), []byte("secret-key-32bytes!!"))
+        msg, _ := ep.Receive()
+        log.Printf("type=%s source=%s", msg.Type, msg.Source)
+    }
+}
 ```
 
-Use:
+### Client
 
-* local IPC
-* structured messages
-* synchronous control pipeline
+```go
+package main
 
-## Framework deployments
+import (
+    "time"
+    "github.com/embeddedos-org/eipc/core"
+    "github.com/embeddedos-org/eipc/protocol"
+    "github.com/embeddedos-org/eipc/transport/tcp"
+)
 
-```text
-ENI → EIPC bus/router → EAI + services
-                      → observability
-                      → storage
-                      → connectors
-```
-
-Use:
-
-* brokered routing
-* policy services
-* audit services
-* optional event fan-out
-
-## Distributed deployments
-
-```text
-ENI → EIPC gateway/API → EAI remote services
-```
-
-Use:
-
-* gRPC
-* REST
-* secure remote integration patterns
-
----
-
-# Message Model
-
-EIPC defines one shared schema between ENI and EAI.
-
-## Standard event
-
-```json
-{
-  "version": "v1",
-  "type": "intent",
-  "source": "eni",
-  "timestamp": "2026-03-24T10:15:00Z",
-  "payload": {
-    "intent": "move_left",
-    "confidence": 0.91
-  }
+func main() {
+    t := tcp.New()
+    conn, _ := t.Dial("127.0.0.1:9090")
+    ep := core.NewClientEndpoint(conn, protocol.DefaultCodec(), []byte("secret-key-32bytes!!"), "")
+    ep.Send(core.Message{
+        Version: core.ProtocolVersion, Type: core.TypeIntent, Source: "eni.min",
+        Timestamp: time.Now().UTC(), RequestID: "req-1", Priority: core.PriorityP0,
+        Payload: []byte(`{"intent":"move_left","confidence":0.91}`),
+    })
+    ep.Close()
 }
 ```
 
 ---
 
-## Message classes
+## Installation
 
-### Intent message
-
-```json
-{
-  "type": "intent",
-  "intent": "move_left",
-  "confidence": 0.91,
-  "session_id": "sess-1"
-}
+```bash
+go get github.com/embeddedos-org/eipc@latest
 ```
 
-### Feature stream message
+## Building
 
-```json
-{
-  "type": "features",
-  "features": {
-    "attention": 0.72,
-    "motor_imagery": "left"
-  }
-}
+```bash
+make build            # Current platform
+make build-all        # All platforms (cross-compile)
+make build-linux      # linux/amd64, linux/arm64, linux/armv7
+make build-darwin     # darwin/amd64, darwin/arm64
+make build-windows    # windows/amd64, windows/arm64
+make release-binaries # Package release archives
+make test             # Run all tests
 ```
 
-### Tool request message
+### GitHub Release
 
-```json
-{
-  "type": "tool_request",
-  "tool": "ui.cursor.move",
-  "args": {
-    "direction": "left",
-    "step": 1
-  }
-}
-```
-
-### Acknowledgement message
-
-```json
-{
-  "type": "ack",
-  "request_id": "req-44",
-  "status": "ok"
-}
-```
-
-### Policy result message
-
-```json
-{
-  "type": "policy_result",
-  "request_id": "req-44",
-  "allowed": true
-}
-```
-
-### Heartbeat message
-
-```json
-{
-  "type": "heartbeat",
-  "service": "eni-min",
-  "status": "ready"
-}
-```
-
-### Audit event
-
-```json
-{
-  "type": "audit",
-  "request_id": "req-3001",
-  "payload": {
-    "actor": "eni.min",
-    "action": "ui.cursor.move",
-    "result": "success"
-  }
-}
+```bash
+gh release create v0.2.0 bin/release/* --title "EIPC v0.2.0" --notes-file CHANGELOG.md
 ```
 
 ---
 
-# Protocol Design
+## API Reference
 
-## Frame structure
+### Core — `github.com/embeddedos-org/eipc/core`
 
-EIPC uses a versioned frame format.
-
-```text
-[magic][version][msg_type][flags][header_len][payload_len][header][payload][mac]
-```
-
-## Suggested header fields
-
-* `service_id`
-* `session_id`
-* `request_id`
-* `sequence`
-* `timestamp`
-* `priority`
-* `capability`
-* `route`
-* `payload_format`
-
-This design supports:
-
-* stable parsing
-* compatibility evolution
-* integrity checks
-* routing and priority handling
-
----
-
-# Payload Formats
-
-## Development mode
-
-Use **JSON**
-
-Pros:
-
-* easy to inspect
-* easy to debug
-* easy to log
-* ideal for early development
-
-## Production mode
-
-Use **MessagePack**
-
-Pros:
-
-* compact
-* faster
-* lower overhead
-* still structured
-
-## Recommendation
-
-* JSON for development and debugging
-* MessagePack for production
-* same schema across both
-
----
-
-# Transport Modes
-
-EIPC supports multiple transport modes under one common API.
-
-## 1. Control Channel
-
-Use:
-
-* Unix domain sockets on Linux / EoS
-* named pipes on Windows
-
-Best for:
-
-* intents
-* commands
-* acks
-* policy decisions
-
-## 2. Stream Channel
-
-Use:
-
-* shared memory ring buffer later
-* low-copy local channels
-
-Best for:
-
-* high-rate feature streams
-* robotics
-* real-time workloads
-
-## 3. Event Channel
-
-Use:
-
-* internal pub/sub
-* observability/event sinks
-
-Best for:
-
-* logs
-* telemetry
-* audit fan-out
-* non-critical status traffic
-
----
-
-# Security Model
-
-EIPC is security-enhanced from day one.
-
-## Security principles
-
-* local-only by default
-* explicit service identity
-* capability-based authorization
-* tamper-evident messaging
-* replay protection
-* policy-controlled execution
-* auditable actions
-
----
-
-## Minimum security requirements
-
-* peer identity validation
-* permission tags on messages
-* allowlist of callable tools
-* audit IDs for controlled actions
-* session binding
-* integrity protection
-
-Example:
-
-```json
-{
-  "type": "tool_request",
-  "tool": "actuator.write",
-  "permission": "device:write",
-  "audit_id": "audit-00912"
-}
-```
-
----
-
-## Security-enhanced services
-
-### Peer Authentication Service
-
-Every ENI/EAI service must prove identity.
-
-Examples:
-
-* `eni.min`
-* `eni.framework`
-* `eai.min.agent`
-* `eai.framework.policy`
-
-Possible mechanisms:
-
-* local service identity
-* signed service manifests
-* startup-issued session token
-* OS credential checks
-
----
-
-### Authorization / Capability Service
-
-Every request must carry capability scope.
-
-Examples:
-
-* `ui:control`
-* `device:read`
-* `device:write`
-* `iot:publish`
-* `system:restricted`
-
----
-
-### Integrity Protection
-
-Every message should be tamper-evident.
-
-Recommended minimum:
-
-* session MAC / HMAC
-* sequence number
-* timestamp
-* request ID
-
----
-
-### Replay Protection
-
-Recommended protections:
-
-* monotonic counters
-* nonce/session binding
-* time-window checks
-
----
-
-### Audit Service
-
-Every controlled action should be auditable.
-
-Audit fields should include:
-
-* request ID
-* source identity
-* target service
-* action
-* policy decision
-* timestamp
-* result
-
----
-
-### Policy Enforcement Service
-
-Policy should exist in the EIPC layer, not only in app logic.
-
-Required flow:
-
-```text
-ENI request
-→ EIPC identity check
-→ capability check
-→ EAI policy check
-→ tool execution
-→ audit log
-```
-
-Never allow:
-
-```text
-ENI → direct unsafe system control
-```
-
----
-
-### Secure Discovery / Registration
-
-Services must register using:
-
-* declared capabilities
-* supported versions
-* message types
-* priority classes
-
-This prevents untrusted local processes from impersonating valid components.
-
----
-
-# Encryption Guidance
-
-## Mandatory
-
-* peer authentication
-* message integrity
-
-## Recommended
-
-* encryption for framework/industrial/high-sensitivity deployments
-
-For local-only hardened systems, integrity + auth may be enough for some minimal deployments.
-
-For industrial and cognitive-sensitive systems, per-session encryption is recommended.
-
-### Minimal mode
-
-* authentication mandatory
-* integrity mandatory
-* encryption optional
-
-### Framework mode
-
-* authentication mandatory
-* integrity mandatory
-* encryption recommended
-
----
-
-# Real-Time Design Rules
-
-To keep EIPC suitable for ENI and EAI, define these rules early.
-
-## Rules
-
-* no unbounded queues
-* no blocking writes on critical paths
-* timeout-aware sends
-* explicit backpressure handling
-* defined drop policy for non-critical traffic
-
-## Priority lanes
-
-* `P0` — control critical
-* `P1` — interactive
-* `P2` — telemetry
-* `P3` — debug / audit bulk
-
-Priority behavior may vary by policy:
-
-* `P0` can disallow dynamic routing
-* `P2` and `P3` can allow buffered delivery
-
----
-
-# Deployment Profiles
-
-## EIPC-Min
-
-Best for:
-
-* ENI-Min ↔ EAI-Min
-* assistive UI
-* edge control
-* handheld/mobile-class embedded systems
-
-Recommended stack:
-
-* Unix domain sockets
-* OS credential check
-* session token
-* HMAC-protected messages
-* strict local-only mode
-* allowlist capabilities
-
----
-
-## EIPC-Framework
-
-Best for:
-
-* ENI-Framework ↔ EAI-Framework
-* industrial gateways
-* robotics
-* larger embedded systems
-
-Recommended stack:
-
-* broker/router
-* service registration
-* session key establishment
-* signed manifests
-* policy engine
-* audit service
-* priority lanes
-* optional encrypted local transport
-
----
-
-# Example Flows
-
-## ENI-Min + EAI-Min
-
-```text
-ENI-Min
-  └── EIPC client
-        ↓
-     EIPC socket
-        ↓
-EAI-Min
-  └── EIPC server
-```
-
-Flow:
-
-1. ENI receives decoded intent
-2. ENI normalizes it
-3. ENI sends intent over EIPC
-4. EAI validates and maps tool
-5. EAI returns ack/result
-
----
-
-## ENI-Framework + EAI-Framework
-
-```text
-ENI-Framework
-  └── EIPC producer(s)
-        ↓
-   EIPC routing/runtime
-        ↓
-EAI-Framework services
-  ├── orchestrator
-  ├── policy engine
-  ├── observability
-  └── connector manager
-```
-
----
-
-## End-to-end secure minimal flow
-
-```text
-1. eni.min connects to EIPC socket
-2. EIPC validates peer identity
-3. EIPC issues session token
-4. eni.min sends MAC-protected intent
-5. eai.min.agent receives request
-6. capability ui:control is checked
-7. action allowed
-8. tool executes: ui.cursor.move
-9. audit event recorded
-10. ack returned
-```
-
----
-
-## End-to-end secure framework flow
-
-```text
-1. eni.framework registers with broker
-2. provider stream enters secure routing lane
-3. message normalized and classified
-4. policy requires confirmation
-5. operator approval granted
-6. orchestrator invokes allowed connector
-7. audit and metrics recorded
-8. result returned
-```
-
----
-
-# Example API Surface
-
-## Go interface
+#### Message
 
 ```go
 type Message struct {
-    Version   uint16
-    Type      string
-    SessionID string
-    Priority  uint8
-    Payload   []byte
+    Version    uint16      `json:"version"`
+    Type       MessageType `json:"type"`
+    Source     string      `json:"source"`
+    Timestamp  time.Time   `json:"timestamp"`
+    SessionID  string      `json:"session_id"`
+    RequestID  string      `json:"request_id"`
+    Priority   Priority    `json:"priority"`
+    Capability string      `json:"capability"`
+    Payload    []byte      `json:"payload"`
 }
+```
 
+#### MessageType & Priority
+
+```go
+const (
+    TypeIntent       MessageType = "intent"
+    TypeFeatures     MessageType = "features"
+    TypeToolRequest  MessageType = "tool_request"
+    TypeAck          MessageType = "ack"
+    TypePolicyResult MessageType = "policy_result"
+    TypeHeartbeat    MessageType = "heartbeat"
+    TypeAudit        MessageType = "audit"
+)
+
+const (
+    PriorityP0 Priority = 0  // Control-critical
+    PriorityP1 Priority = 1  // Interactive
+    PriorityP2 Priority = 2  // Telemetry
+    PriorityP3 Priority = 3  // Debug / audit bulk
+)
+```
+
+#### Functions
+
+| Function | Signature | Description |
+|---|---|---|
+| `NewMessage` | `(msgType, source, payload) Message` | Creates message with defaults |
+| `MsgTypeToByte` | `(mt MessageType) uint8` | Converts to wire byte |
+
+#### Endpoint Interface
+
+```go
 type Endpoint interface {
     Send(msg Message) error
     Receive() (Message, error)
@@ -873,353 +188,307 @@ type Endpoint interface {
 }
 ```
 
-## Higher-level helper
+**ClientEndpoint** — `NewClientEndpoint(conn, codec, hmacKey, sessionID)`
+
+| Method | Description |
+|---|---|
+| `Send(msg) error` | Encodes, signs (HMAC), transmits |
+| `Receive() (Message, error)` | Reads, verifies HMAC, decodes |
+| `Close() error` | Closes connection |
+
+**ServerEndpoint** — `NewServerEndpoint(conn, codec, hmacKey)`
+
+| Method | Description |
+|---|---|
+| `Send(msg) error` | Encodes, signs, transmits |
+| `Receive() (Message, error)` | Reads, verifies HMAC, checks replay |
+| `Close() error` | Closes connection |
+| `RemoteAddr() string` | Remote peer address |
+
+#### Router
 
 ```go
-type IntentEvent struct {
-    Intent     string  `json:"intent"`
-    Confidence float64 `json:"confidence"`
-    SessionID  string  `json:"session_id"`
+r := core.NewRouter()
+r.Handle(core.TypeIntent, func(msg Message) (*Message, error) { ... })
+r.Dispatch(msg)                    // Single message
+r.DispatchBatch(msgs)              // Priority-ordered batch (P0 first)
+```
+
+#### Event Types
+
+| Type | Key Fields | Description |
+|---|---|---|
+| `IntentEvent` | Intent, Confidence, SessionID | Neural intent |
+| `FeatureStreamEvent` | Features map | Real-time features |
+| `ToolRequestEvent` | Tool, Args, Permission, AuditID | Tool request |
+| `AckEvent` | RequestID, Status, Error | Acknowledgement |
+| `PolicyResultEvent` | RequestID, Allowed, Reason | Auth decision |
+| `HeartbeatEvent` | Service, Status | Liveness signal |
+| `AuditEvent` | RequestID, Actor, Action, Target, Decision, Result | Audit record |
+
+#### Errors
+
+```go
+var (
+    ErrAuth         = errors.New("eipc: authentication failed")
+    ErrCapability   = errors.New("eipc: capability check failed")
+    ErrIntegrity    = errors.New("eipc: integrity verification failed")
+    ErrReplay       = errors.New("eipc: replay detected")
+    ErrTimeout      = errors.New("eipc: operation timed out")
+    ErrBackpressure = errors.New("eipc: backpressure limit reached")
+)
+```
+
+---
+
+### Protocol — `github.com/embeddedos-org/eipc/protocol`
+
+#### Frame
+
+```go
+type Frame struct {
+    Version uint16; MsgType uint8; Flags uint8
+    Header  []byte; Payload []byte; MAC []byte
 }
 ```
 
+| Constant | Value | Description |
+|---|---|---|
+| `MagicBytes` | `0x45495043` | ASCII "EIPC" |
+| `MaxFrameSize` | 1 MB | Maximum frame size |
+| `MACSize` | 32 | HMAC-SHA256 output |
+| `ProtocolVersion` | 1 | Wire version |
+| `FlagHMAC` | `1<<0` | Frame carries HMAC |
+| `FlagCompress` | `1<<1` | Compressed (reserved) |
+
+| Method | Description |
+|---|---|
+| `Encode(w io.Writer) error` | Write frame in wire format |
+| `SignableBytes() []byte` | Bytes covered by MAC |
+| `Decode(r io.Reader) (*Frame, error)` | Parse frame from reader |
+
+#### Header
+
+```go
+type Header struct {
+    ServiceID string; SessionID string; RequestID string
+    Sequence uint64; Timestamp string; Priority uint8
+    Capability string; Route string; PayloadFormat uint8
+}
+```
+
+#### Codec
+
+```go
+type Codec interface {
+    Marshal(v interface{}) ([]byte, error)
+    Unmarshal(data []byte, v interface{}) error
+}
+func DefaultCodec() Codec  // JSONCodec
+```
+
 ---
 
-# Repository Layout
+### Transport — `github.com/embeddedos-org/eipc/transport`
+
+```go
+type Transport interface {
+    Listen(address string) error
+    Dial(address string) (Connection, error)
+    Accept() (Connection, error)
+    Close() error
+}
+type Connection interface {
+    Send(frame *protocol.Frame) error
+    Receive() (*protocol.Frame, error)
+    RemoteAddr() string
+    Close() error
+}
+```
+
+| Package | Platforms | Address Example |
+|---|---|---|
+| `transport/tcp` | All | `"127.0.0.1:9090"` |
+| `transport/unix` | Linux, macOS | `"/tmp/eipc.sock"` |
+| `transport/windows` | Windows | `"127.0.0.1:9090"` |
+| `transport/shm` | All (in-process) | Ring buffer config |
+
+#### Shared Memory
+
+```go
+rb := shm.NewRingBuffer(shm.Config{Name: "eipc", BufferSize: 65536, SlotCount: 256})
+conn := shm.NewConnection(txBuf, rxBuf, "peer")
+```
+
+---
+
+### Security
+
+#### Auth — `security/auth`
+
+```go
+a := auth.NewAuthenticator(secret, map[string][]string{"eni.min": {"ui:control"}})
+peer, _ := a.Authenticate("eni.min")      // → PeerIdentity with session token
+a.ValidateSession(peer.SessionToken)       // Check session
+a.RevokeSession(peer.SessionToken)         // Revoke
+```
+
+#### Capability — `security/capability`
+
+```go
+c := capability.NewChecker(map[string][]string{"ui:control": {"ui.cursor.move"}})
+err := c.Check(peer.Capabilities, "ui.cursor.move")  // nil = allowed
+c.Grant("ui:control", "ui.scroll")                    // Runtime grant
+c.Revoke("ui:control", "ui.scroll")                   // Runtime revoke
+```
+
+#### Integrity — `security/integrity`
+
+```go
+mac := integrity.Sign(key, data)              // HMAC-SHA256
+ok  := integrity.Verify(key, data, mac)       // Verify
+```
+
+#### Replay — `security/replay`
+
+```go
+t := replay.NewTracker(128)    // Sliding window
+err := t.Check(seq)            // nil = valid
+t.Reset()                      // Clear state
+```
+
+#### Keyring — `security/keyring`
+
+```go
+kr := keyring.New()
+entry, _ := kr.Generate("id", 32, 1*time.Hour)
+kr.Lookup("id")
+kr.Rotate("id", 32, 1*time.Hour)
+kr.Cleanup()
+```
+
+---
+
+### Services
+
+#### Broker — `services/broker`
+
+```go
+brk := broker.NewBroker(registry, auditLogger)
+brk.Subscribe(&broker.Subscriber{ServiceID: "eai", Endpoint: ep, Priority: core.PriorityP1})
+brk.AddRoute(core.TypeIntent, "eai")
+results := brk.Route(msg)       // Priority-ordered delivery
+results  = brk.Fanout(msg)      // All subscribers
+```
+
+#### Registry — `services/registry`
+
+```go
+reg := registry.NewRegistry()
+reg.Register(registry.ServiceInfo{ServiceID: "eni.min", Capabilities: []string{"ui:control"}})
+info, _ := reg.Lookup("eni.min")
+svcs := reg.FindByCapability("ui:control")
+```
+
+#### Policy — `services/policy`
+
+```go
+pe := policy.NewEngine(true, auditLogger)  // default-deny
+pe.LoadSafeDefaults()
+result := pe.Evaluate(policy.Request{Source: "eni", Action: "ui.cursor.move"})
+// ActionSafe → VerdictAllow | ActionControlled → capability check | ActionRestricted → VerdictConfirm
+```
+
+#### Audit — `services/audit`
+
+```go
+logger, _ := audit.NewFileLogger("/var/log/eipc-audit.jsonl")  // "" → stdout
+logger.Log(audit.Entry{RequestID: "r1", Source: "eni", Action: "move", Decision: "allow"})
+```
+
+#### Health — `services/health`
+
+```go
+h := health.NewService(5*time.Second, 15*time.Second)
+h.RecordHeartbeat("eni.min", "ready")
+h.IsAlive("eni.min")   // true if within timeout
+h.LivePeers()           // All alive peers
+```
+
+---
+
+## Wire Protocol
+
+```text
+[magic:4][version:2][msg_type:1][flags:1][header_len:4][payload_len:4][header][payload][mac:32?]
+```
+
+Big-endian. Magic = `0x45495043`. Preamble = 16 bytes. MAC present when `FlagHMAC` set.
+
+## Message Types
+
+| Byte | Type | Direction |
+|---|---|---|
+| `'i'` | intent | ENI→EAI |
+| `'f'` | features | ENI→EAI |
+| `'t'` | tool_request | EAI→Tool |
+| `'a'` | ack | Bidirectional |
+| `'p'` | policy_result | EAI→ENI |
+| `'h'` | heartbeat | Bidirectional |
+| `'u'` | audit | Internal |
+
+## Platform Support
+
+| Feature | Linux | macOS | Windows |
+|---|:---:|:---:|:---:|
+| Core protocol | ✅ | ✅ | ✅ |
+| TCP transport | ✅ | ✅ | ✅ |
+| Unix sockets | ✅ | ✅ | — |
+| Named pipes | — | — | ✅ |
+| Shared memory | ✅ | ✅ | ✅ |
+| Full security | ✅ | ✅ | ✅ |
+
+## Testing
+
+```bash
+make test
+```
+
+## C SDK
+
+Available under `sdk/c/`. Build: `cd sdk/c && mkdir build && cd build && cmake .. && make`
+
+## Repository Layout
 
 ```text
 eipc/
-├── core/
-├── protocol/
-├── security/
-│   ├── auth/
-│   ├── capability/
-│   ├── integrity/
-│   ├── replay/
-│   └── keyring/
-├── runtime/
-├── transport/
-│   ├── unix/
-│   ├── windows/
-│   ├── tcp/
-│   └── shm/
-├── services/
-│   ├── broker/
-│   ├── policy/
-│   ├── audit/
-│   ├── registry/
-│   └── health/
-├── sdk/
-│   ├── go/
-│   ├── c/
-│   └── cpp/
-└── tests/
+├── cmd/eipc-server/    Server binary
+├── cmd/eipc-client/    Client binary
+├── core/               Message, Router, Endpoint, Events
+├── protocol/           Frame, Header, Codec
+├── transport/          TCP, Unix, Windows, SHM
+├── security/           Auth, Capability, Integrity, Replay, Keyring
+├── services/           Broker, Registry, Policy, Audit, Health
+├── sdk/c/              C SDK
+├── tests/              Integration tests
+└── Makefile            Cross-platform build
 ```
 
----
+## Contributing
 
-# Service Set
-
-## Core services
-
-* `eipc-authd` — identity and session service
-* `eipc-policyd` — authorization service
-* `eipc-auditd` — audit sink
-* `eipc-regd` — service registry and discovery
-* `eipc-healthd` — health and heartbeat service
-
-For minimal deployments, several services can be embedded into one daemon.
-
-For framework deployments, keep them separate.
-
----
-
-# Build Roadmap
-
-## Phase 1
-
-Build:
-
-* protocol schema
-* Unix socket transport
-* Go SDK
-* JSON payload support
-* simple client/server demo
-
-## Phase 2
-
-Integrate with:
-
-* `eni-min-service`
-* `eai-min-agent`
-
-## Phase 3
-
-Add:
-
-* MessagePack mode
-* priorities
-* backpressure handling
-* observability hooks
-
-## Phase 4
-
-Add advanced transports and services:
-
-* shared memory ring buffer
-* Windows adapter
-* broker/runtime for framework systems
-* encryption support
-
-## Phase 5
-
-LTS hardening:
-
-* protocol freeze for v1
-* compatibility guarantees
-* security review
-* audit format stabilization
-* deterministic deployment profiles
-
----
-
-# Recommended Starting Point
-
-For a practical v1, start with:
-
-* Unix domain sockets
-* structured messages
-* versioned protocol
-* JSON payloads
-* service identity
-* HMAC-protected messages
-* sequence numbers
-* capability policy
-* audit logs
-
-This is enough to deliver:
-
-* speed
-* portability
-* debuggability
-* security
-* LTS stability
-
-# Recommended EIPC variants
-
-## 1. **EIPC-Lite**
-
-Smallest footprint.
-
-Best for:
-
-* simple local IPC
-* dev/test
-* tiny embedded systems
-* single producer ↔ single consumer
-
-Characteristics:
-
-* no broker
-* no heavy security services
-* direct point-to-point transport
-* basic auth/integrity only
-* lowest memory use
-
-Use cases:
-
-* `ENI-Min ↔ EAI-Min`
-* simulator ↔ agent
-* handheld/mobile-class devices
-
----
-
-## 2. **EIPC-Min**
-
-Secure minimal production profile.
-
-Best for:
-
-* real embedded deployments
-* assistive systems
-* low-latency control
-* bounded service count
-
-Characteristics:
-
-* local IPC transport
-* service identity
-* capability checks
-* HMAC/integrity
-* audit hooks
-* strict local-only mode
-
-Use cases:
-
-* production `ENI-Min ↔ EAI-Min`
-* edge controllers
-* compact AI appliances
-
----
-
-## 3. **EIPC-Framework**
-
-Full scalable profile.
-
-Best for:
-
-* industrial systems
-* robotics
-* multi-service orchestration
-* observability and policy-heavy environments
-
-Characteristics:
-
-* optional broker/router
-* service registry
-* policy daemon
-* audit daemon
-* priority lanes
-* richer routing
-* optional encryption
-* multi-client and multi-subscriber support
-
-Use cases:
-
-* `ENI-Framework ↔ EAI-Framework`
-* industrial gateways
-* large embedded AI systems
-
----
-
-# Best way to think about them
-
-Not:
-
-* three separate repos
-* three incompatible protocols
-
-Instead:
-
-> **one EIPC protocol and core**
-> with **three deployment profiles**
-
-That is much cleaner for LTS.
-
----
-
-# Recommended relationship
-
-```text
-EIPC
-├── core
-├── protocol
-├── transport
-├── security
-├── runtime
-└── profiles
-    ├── lite
-    ├── min
-    └── framework
-```
-
----
-
-# What changes between Lite, Min, and Framework
-
-| Feature              |      EIPC-Lite | EIPC-Min | EIPC-Framework |
-| -------------------- | -------------: | -------: | -------------: |
-| Core protocol        |              ✅ |        ✅ |              ✅ |
-| Direct local IPC     |              ✅ |        ✅ |              ✅ |
-| Broker/router        |              ❌ |        ❌ |              ✅ |
-| Capability auth      |          basic |        ✅ |              ✅ |
-| Message integrity    | optional/basic |        ✅ |              ✅ |
-| Audit logging        |        minimal |        ✅ |     ✅ advanced |
-| Policy engine        |              ❌ |    basic |              ✅ |
-| Priority lanes       |          basic |        ✅ |     ✅ advanced |
-| Shared memory stream |              ❌ | optional |       optional |
-| Encryption           |              ❌ | optional |    recommended |
-| Observability        |        minimal |    basic |           full |
-
----
-
-# My naming recommendation
-
-Use these exact names:
-
-* **EIPC-Lite**
-* **EIPC-Min**
-* **EIPC-Framework**
-
-This reads well and is easy to explain.
-
----
-
-# Mapping to ENI / EAI
-
-## Smallest setup
-
-* `ENI-Min + EAI-Min` → **EIPC-Lite** or **EIPC-Min**
-
-## Real production embedded setup
-
-* `ENI-Min + EAI-Min` → **EIPC-Min**
-
-## Industrial / large setup
-
-* `ENI-Framework + EAI-Framework` → **EIPC-Framework**
-
----
-
-# Practical recommendation
-
-If you want the cleanest product story:
-
-* **EIPC-Lite** = developer/lightweight mode
-* **EIPC-Min** = embedded production mode
-* **EIPC-Framework** = industrial/full mode
-
-That is a strong architecture and branding model.
-
-# Summary
-
-**EIPC** is a secure, standalone, cross-platform IPC framework for ENI and EAI.
-
-It is designed to provide:
-
-* real-time local communication
-* security-enhanced services
-* stable internal contracts
-* scalable architecture from minimal to industrial systems
-* portability across Linux, Windows, macOS, and containers
-
-> Use **IPC for speed**,
-> **eventing for scale**,
-> **APIs for integration**,
-> and **EIPC for trust, control, and long-term stability**.
-
----
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Related Projects
 
 | Project | Description |
 |---|---|
-| [**eos**](https://github.com/embeddedos-org/eos) | Embedded Operating System — HAL, kernel, drivers, services |
-| [**eboot**](https://github.com/embeddedos-org/eboot) | Bootloader — multicore, secure boot, firmware update |
-| [**ebuild**](https://github.com/embeddedos-org/ebuild) | Unified embedded build system — CMake, Make, Meson, Cargo |
-| [**eos-sdk**](https://github.com/embeddedos-org/eos-sdk) | Unified C SDK for the EoS platform |
-| [**eai**](https://github.com/embeddedos-org/eai) | AI layer — on-device inference, tool execution, policy |
-| [**eni**](https://github.com/embeddedos-org/eni) | Neural interface adapter — signal decode, intent mapping |
+| [eos](https://github.com/embeddedos-org/eos) | Embedded OS — HAL, kernel, drivers |
+| [eboot](https://github.com/embeddedos-org/eboot) | Bootloader — multicore, secure boot |
+| [ebuild](https://github.com/embeddedos-org/ebuild) | Unified build system |
+| [eos-sdk](https://github.com/embeddedos-org/eos-sdk) | C SDK for EoS |
+| [eai](https://github.com/embeddedos-org/eai) | AI layer — inference, tools, policy |
+| [eni](https://github.com/embeddedos-org/eni) | Neural interface adapter |
 
----
+## License
 
-## Related Projects
-
-| Project | Description |
-|---|---|
-| [**eos**](https://github.com/embeddedos-org/eos) | Embedded Operating System — HAL, kernel, drivers, services |
-| [**eboot**](https://github.com/embeddedos-org/eboot) | Bootloader — multicore, secure boot, firmware update |
-| [**ebuild**](https://github.com/embeddedos-org/ebuild) | Unified embedded build system — CMake, Make, Meson, Cargo |
-| [**eos-sdk**](https://github.com/embeddedos-org/eos-sdk) | Unified C SDK for the EoS platform |
-| [**eai**](https://github.com/embeddedos-org/eai) | AI layer — on-device inference, tool execution, policy |
-| [**eni**](https://github.com/embeddedos-org/eni) | Neural interface adapter — signal decode, intent mapping |
+[Apache License 2.0](LICENSE)
