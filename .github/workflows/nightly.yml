@@ -1,0 +1,49 @@
+name: Nightly Regression
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build
+        run: go build ./...
+      - name: Test
+        run: go test -race -v -count=1 ./...
+      - name: Vet
+        run: go vet ./...
+
+  report:
+    name: Nightly Report
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: always()
+    steps:
+      - name: Results
+        run: |
+          echo "## Nightly Regression Report — EIPC"
+          echo "Date: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          echo "| Job | Status |"
+          echo "|---|---|"
+          echo "| Tests | ${{ needs.test.result }} |"
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "❌ REGRESSION DETECTED"
+            exit 1
+          fi
+          echo "✅ All checks passed"
