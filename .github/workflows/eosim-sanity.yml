@@ -29,7 +29,9 @@ jobs:
           eosim --version
           eosim list
       - name: Validate all platform configs
-        run: eosim list && eosim doctor
+        run: |
+          eosim list
+          eosim doctor
 
   nested-simulation:
     name: Nested Simulation (${{ matrix.platform }})
@@ -55,7 +57,7 @@ jobs:
         run: pip install "eosim @ https://github.com/embeddedos-org/EoSim/releases/download/v${{ env.EOSIM_VERSION }}/eosim-${{ env.EOSIM_VERSION }}-py3-none-any.whl"
       - name: Simulate ${{ matrix.platform }}
         run: |
-          eosim simulate --platform ${{ matrix.platform }} --duration 10 --headless
+          eosim run ${{ matrix.platform }} --headless --timeout 10
           echo "${{ matrix.platform }}: PASSED"
 
   nested-guest-install:
@@ -67,11 +69,11 @@ jobs:
       matrix:
         include:
           - guest: Linux x86_64
-            platform: x86_64
+            platform: x86_64-linux
           - guest: Linux aarch64
-            platform: arm64
+            platform: arm64-linux
           - guest: Linux riscv64
-            platform: riscv64
+            platform: riscv64-linux
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -82,7 +84,7 @@ jobs:
       - name: Boot guest and test EoSim inside
         run: |
           echo "=== Nested Guest: ${{ matrix.guest }} ==="
-          eosim simulate --platform ${{ matrix.platform }} --duration 15 --headless --nested-install
+          eosim run ${{ matrix.platform }} --headless --timeout 15
           echo "${{ matrix.guest }}: PASSED"
 
   windows-sanity:
@@ -98,8 +100,8 @@ jobs:
         run: |
           pip install "eosim @ https://github.com/embeddedos-org/EoSim/releases/download/v${{ env.EOSIM_VERSION }}/eosim-${{ env.EOSIM_VERSION }}-py3-none-any.whl"
           eosim --version
-          eosim list && eosim doctor
           eosim list
+          eosim doctor
 
   macos-sanity:
     name: macOS Sanity
@@ -114,8 +116,8 @@ jobs:
         run: |
           pip install "eosim @ https://github.com/embeddedos-org/EoSim/releases/download/v${{ env.EOSIM_VERSION }}/eosim-${{ env.EOSIM_VERSION }}-py3-none-any.whl"
           eosim --version
-          eosim list && eosim doctor
           eosim list
+          eosim doctor
 
   sanity-gate:
     name: EoSim Sanity Gate
