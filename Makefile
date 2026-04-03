@@ -2,7 +2,7 @@
 
 BINARY_SERVER = eipc-server
 BINARY_CLIENT = eipc-client
-VERSION       ?= 0.2.0
+VERSION       ?= 0.1.0
 LDFLAGS       = -s -w
 BUILD_DIR     = bin
 
