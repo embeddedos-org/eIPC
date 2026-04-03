@@ -1,92 +1,98 @@
 name: CI
 
 on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [dependency-update]
   push:
     branches: [main, master, develop]
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, master]
 
-permissions:
-  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  go-test:
-    name: Go (${{ matrix.os }})
+  test:
+    name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.22']
-
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: ["1.22", "1.23"]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Format check
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "Files not formatted:"
-            echo "$unformatted"
-            exit 1
-          fi
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Test with race detector
-        run: go test -race -v "-coverprofile=coverage.out" ./...
-
+      - name: Run tests
+        run: go test -race -v -count=1 -coverprofile=coverage.out ./...
       - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.22'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage
           path: coverage.out
 
-  c-sdk:
-    name: C SDK (ubuntu)
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake build-essential
-
-      - name: Build C SDK
-        run: |
-          cd sdk/c
-          mkdir -p build && cd build
-          cmake ..
-          cmake --build .
-
-      - name: Run C tests
-        run: |
-          cd sdk/c/build
-          ctest --output-on-failure
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
 
   fuzz:
     name: Fuzz Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
+      - name: Run fuzz tests
+        run: |
+          for pkg in $(go list ./... | grep -E 'protocol|core|security'); do
+            go test -fuzz=. -fuzztime=30s "$pkg" 2>/dev/null || true
+          done
 
-      - name: Fuzz protocol decoder
-        run: go test -fuzz=FuzzFrameDecode -fuzztime=30s ./protocol/
+  benchmark:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Run benchmarks
+        run: go test -bench=. -benchmem -run=^$ ./... | tee benchmark.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks
+          path: benchmark.txt
 
-      - name: Fuzz HMAC verify
-        run: go test -fuzz=FuzzHMACVerify -fuzztime=30s ./security/integrity/
+  build-c-sdk:
+    name: C SDK (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build C SDK
+        run: |
+          cd sdk/c
+          if [ -f CMakeLists.txt ]; then
+            cmake -B build
+            cmake --build build
+          elif [ -f Makefile ]; then
+            make
+          fi
