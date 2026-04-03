@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+﻿// SPDX-License-Identifier: MIT
 // Copyright (c) 2026 EoS Project
 // ISO/IEC 25000 | ISO/IEC/IEEE 15288:2023
 
@@ -211,7 +211,8 @@ eipc_status_t eipc_client_send_chat(eipc_client_t *c,
     fill_header(&hdr, c->service_id, c->sequence);
     strncpy(hdr.capability, "ai:chat", sizeof(hdr.capability) - 1);
 
-    rc = eipc_chat_request_to_json(req, payload_json, sizeof(payload_json));
+    size_t chat_written = 0;
+    rc = eipc_chat_request_to_json(req, payload_json, sizeof(payload_json), &chat_written);
     if (rc != EIPC_OK) return rc;
 
     return build_and_send(c, EIPC_MSG_CHAT, &hdr,

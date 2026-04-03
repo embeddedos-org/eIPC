@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+﻿// SPDX-License-Identifier: MIT
 // Copyright (c) 2026 EoS Project
 // ISO/IEC 25000 | ISO/IEC/IEEE 15288:2023
 
@@ -184,9 +184,9 @@ eipc_status_t eipc_header_to_json(const eipc_header_t *hdr,
 /* ---------- Chat Request JSON ---------- */
 
 eipc_status_t eipc_chat_request_to_json(const eipc_chat_request_t *req,
-                                        char *buf, size_t buf_size) {
+                                        char *buf, size_t buf_size, size_t *written) {
     int n;
-    if (!req || !buf) return EIPC_ERR_INVALID;
+    if (!req || !buf || !written) return EIPC_ERR_INVALID;
     n = snprintf(buf, buf_size,
         "{\"session_id\":\"%s\","
         "\"user_prompt\":\"%s\","
@@ -194,6 +194,7 @@ eipc_status_t eipc_chat_request_to_json(const eipc_chat_request_t *req,
         "\"max_tokens\":%d}",
         req->session_id, req->user_prompt, req->model, req->max_tokens);
     if (n < 0 || (size_t)n >= buf_size) return EIPC_ERR_FRAME_TOO_LARGE;
+    *written = (size_t)n;
     return EIPC_OK;
 }
 
@@ -213,9 +214,9 @@ eipc_status_t eipc_chat_request_from_json(const char *json, size_t json_len,
 /* ---------- Chat Response JSON ---------- */
 
 eipc_status_t eipc_chat_response_to_json(const eipc_chat_response_t *resp,
-                                         char *buf, size_t buf_size) {
+                                         char *buf, size_t buf_size, size_t *written) {
     int n;
-    if (!resp || !buf) return EIPC_ERR_INVALID;
+    if (!resp || !buf || !written) return EIPC_ERR_INVALID;
     n = snprintf(buf, buf_size,
         "{\"session_id\":\"%s\","
         "\"response\":\"%s\","
@@ -223,6 +224,7 @@ eipc_status_t eipc_chat_response_to_json(const eipc_chat_response_t *resp,
         "\"tokens_used\":%d}",
         resp->session_id, resp->response, resp->model, resp->tokens_used);
     if (n < 0 || (size_t)n >= buf_size) return EIPC_ERR_FRAME_TOO_LARGE;
+    *written = (size_t)n;
     return EIPC_OK;
 }
 
