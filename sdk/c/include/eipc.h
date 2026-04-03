@@ -34,17 +34,17 @@ bool eipc_hmac_verify(const uint8_t *key, size_t key_len,
  *  JSON helpers (minimal, no external deps)
  * ══════════════════════════════════════════════════════════════ */
 
-eipc_status_t eipc_header_to_json(const eipc_header_t *hdr, char *buf, size_t buf_size);
+eipc_status_t eipc_header_to_json(const eipc_header_t *hdr, char *buf, size_t buf_size, size_t *written);
 eipc_status_t eipc_header_from_json(const char *json, size_t json_len, eipc_header_t *hdr);
 
-eipc_status_t eipc_intent_to_json(const eipc_intent_event_t *ev, char *buf, size_t buf_size);
+eipc_status_t eipc_intent_to_json(const eipc_intent_event_t *ev, char *buf, size_t buf_size, size_t *written);
 eipc_status_t eipc_intent_from_json(const char *json, size_t json_len, eipc_intent_event_t *ev);
 
-eipc_status_t eipc_ack_to_json(const eipc_ack_event_t *ev, char *buf, size_t buf_size);
+eipc_status_t eipc_ack_to_json(const eipc_ack_event_t *ev, char *buf, size_t buf_size, size_t *written);
 eipc_status_t eipc_ack_from_json(const char *json, size_t json_len, eipc_ack_event_t *ev);
 
-eipc_status_t eipc_tool_request_to_json(const eipc_tool_request_t *ev, char *buf, size_t buf_size);
-eipc_status_t eipc_heartbeat_to_json(const eipc_heartbeat_event_t *ev, char *buf, size_t buf_size);
+eipc_status_t eipc_tool_request_to_json(const eipc_tool_request_t *ev, char *buf, size_t buf_size, size_t *written);
+eipc_status_t eipc_heartbeat_to_json(const eipc_heartbeat_event_t *ev, char *buf, size_t buf_size, size_t *written);
 
 eipc_status_t eipc_chat_request_to_json(const eipc_chat_request_t *req, char *buf, size_t buf_size);
 eipc_status_t eipc_chat_request_from_json(const char *json, size_t json_len, eipc_chat_request_t *req);

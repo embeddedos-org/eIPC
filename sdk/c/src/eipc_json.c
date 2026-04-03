@@ -373,7 +373,7 @@ eipc_status_t eipc_tool_request_to_json(const eipc_tool_request_t *req,
         return EIPC_ERR_INVALID;
 
     args_json[ai++] = '{';
-    for (i = 0; i < req->args_count && i < EIPC_MAX_TOOL_ARGS; i++) {
+    for (i = 0; i < req->arg_count && i < EIPC_MAX_TOOL_ARGS; i++) {
         char ek[128], ev[256];
         int written;
 

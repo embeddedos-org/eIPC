@@ -22,6 +22,7 @@ extern "C" {
 #define EIPC_MAC_SIZE       32           /* HMAC-SHA256 */
 #define EIPC_MAX_FRAME      (1U << 20)   /* 1 MB */
 #define EIPC_MAX_ARGS       16
+#define EIPC_MAX_TOOL_ARGS  EIPC_MAX_ARGS
 #define EIPC_MAX_PAYLOAD    4096
 #define EIPC_MAX_HEADER     1024
 #define EIPC_SERVICE_ID_MAX 64
@@ -93,6 +94,7 @@ typedef enum {
     EIPC_ERR_BAD_MAGIC,
     EIPC_ERR_BAD_VERSION,
     EIPC_ERR_NOT_FOUND,
+    EIPC_ERR_BUFFER,
 } eipc_status_t;
 
 /* ══════════════════════════════════════════════════════════════
@@ -166,12 +168,14 @@ typedef struct {
     float confidence;
     char  session_id[EIPC_SESSION_ID_MAX];
 } eipc_intent_event_t;
+typedef eipc_intent_event_t eipc_intent_t;
 
 typedef struct {
     char request_id[EIPC_REQUEST_ID_MAX];
     char status[32];
     char error[256];
 } eipc_ack_event_t;
+typedef eipc_ack_event_t eipc_ack_t;
 
 typedef struct {
     char     tool[EIPC_TOOL_NAME_MAX];
@@ -191,6 +195,7 @@ typedef struct {
     char service[EIPC_SERVICE_ID_MAX];
     char status[32];
 } eipc_heartbeat_event_t;
+typedef eipc_heartbeat_event_t eipc_heartbeat_t;
 
 /* ── Chat / Complete event types (ebot ↔ EAI via EIPC) ── */
 
