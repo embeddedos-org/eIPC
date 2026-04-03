@@ -324,6 +324,7 @@ eipc_status_t eipc_easy_send_chat_response(eipc_easy_server_t *h,
     char payload_json[EIPC_MAX_PAYLOAD];
     eipc_message_t msg;
     eipc_status_t rc;
+    size_t written;
 
     if (!h || !h->has_client || !response) return EIPC_ERR_INVALID;
 
@@ -335,7 +336,7 @@ eipc_status_t eipc_easy_send_chat_response(eipc_easy_server_t *h,
         strncpy(resp.model, model, sizeof(resp.model) - 1);
     resp.tokens_used = tokens_used;
 
-    rc = eipc_chat_response_to_json(&resp, payload_json, sizeof(payload_json));
+    rc = eipc_chat_response_to_json(&resp, payload_json, sizeof(payload_json), &written);
     if (rc != EIPC_OK) {
         h->stats.error_count++;
         return rc;
