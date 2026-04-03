@@ -161,7 +161,7 @@ eipc_status_t eipc_header_to_json(const eipc_header_t *hdr,
         "\"session_id\":\"%s\","
         "\"request_id\":\"%s\","
         "\"sequence\":%llu,"
-        "\"timestamp\":\"%llu\","
+        "\"timestamp\":\"%s\","
         "\"priority\":%d,"
         "\"capability\":\"%s\","
         "\"payload_format\":%d}",
@@ -169,7 +169,7 @@ eipc_status_t eipc_header_to_json(const eipc_header_t *hdr,
         hdr->session_id,
         hdr->request_id,
         (unsigned long long)hdr->sequence,
-        (unsigned long long)hdr->timestamp,
+        hdr->timestamp,
         hdr->priority,
         hdr->capability,
         hdr->payload_format);
@@ -256,8 +256,8 @@ eipc_status_t eipc_header_from_json(const char *json, size_t json_len,
 
     if (json_find_uint64(json, "sequence", &val) == 0)
         hdr->sequence = val;
-    if (json_find_uint64(json, "timestamp", &val) == 0)
-        hdr->timestamp = val;
+    json_find_string(json, "timestamp", hdr->timestamp, sizeof(hdr->timestamp));
+
     if (json_find_int(json, "priority", &ival) == 0)
         hdr->priority = ival;
 
