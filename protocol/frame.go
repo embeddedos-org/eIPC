@@ -26,8 +26,9 @@ var (
 
 // Frame flags
 const (
-	FlagHMAC     uint8 = 1 << 0 // Frame carries an HMAC
-	FlagCompress uint8 = 1 << 1 // Payload is compressed (future)
+	FlagHMAC      uint8 = 1 << 0 // Frame carries an HMAC
+	FlagCompress  uint8 = 1 << 1 // Payload is compressed (future)
+	FlagEncrypted uint8 = 1 << 2 // Payload is encrypted with AES-GCM
 )
 
 // Frame is the on-the-wire representation of an EIPC message.

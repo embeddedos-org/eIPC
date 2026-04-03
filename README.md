@@ -50,6 +50,18 @@ EIPC is a **standalone, cross-platform, security-enhanced IPC framework** for em
 
 ---
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/architecture.md) | Component diagrams, message flow, wire protocol |
+| [API Reference](docs/api-reference.md) | Full godoc-style package documentation |
+| [Security Model](docs/security-model.md) | Threat model, HMAC, auth, capability system |
+| [Key Management](docs/key-management.md) | Key generation, rotation, storage guidance |
+| [Use Cases](docs/use-cases.md) | Deployment scenarios with config examples |
+| [Performance](docs/performance.md) | Benchmarks, tuning, backpressure |
+| [Benchmarks](docs/benchmarks.md) | Comparisons vs gRPC, ZeroMQ, MQTT |
+
 ## Quick Start
 
 ### Server

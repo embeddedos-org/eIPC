@@ -50,6 +50,12 @@ vet:
 lint: vet
 	@echo "Lint checks passed"
 
+bench:
+	go test -bench=. -benchmem ./core/ ./protocol/
+
+build-cli:
+	go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/eipc-cli ./cmd/eipc-cli
+
 # Package release archives per platform
 release-binaries: build-all
 	@mkdir -p $(BUILD_DIR)/release
