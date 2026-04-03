@@ -10,6 +10,7 @@
 #include "eipc.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 eipc_status_t eipc_server_init(eipc_server_t *s) {
     if (!s) return EIPC_ERR_INVALID;
@@ -127,13 +128,12 @@ eipc_status_t eipc_server_send_ack(eipc_conn_t *conn, const char *request_id,
     frame.msg_type = EIPC_MSG_ACK;
     frame.flags = EIPC_FLAG_HMAC;
 
-    rc = eipc_header_to_json(&hdr, header_json, sizeof(header_json));
-    if (rc != EIPC_OK) return rc;
-
     {
-        size_t hdr_len = strlen(header_json);
-        memcpy(frame.header, header_json, hdr_len);
-        frame.header_len = (uint32_t)hdr_len;
+        size_t hdr_written = 0;
+        rc = eipc_header_to_json(&hdr, header_json, sizeof(header_json), &hdr_written);
+        if (rc != EIPC_OK) return rc;
+        memcpy(frame.header, header_json, hdr_written);
+        frame.header_len = (uint32_t)hdr_written;
     }
 
     plen = snprintf(payload_json, sizeof(payload_json),
@@ -179,13 +179,12 @@ eipc_status_t eipc_server_send_message(eipc_conn_t *conn, const eipc_message_t *
     frame.msg_type = msg->msg_type;
     frame.flags = EIPC_FLAG_HMAC;
 
-    rc = eipc_header_to_json(&hdr, header_json, sizeof(header_json));
-    if (rc != EIPC_OK) return rc;
-
     {
-        size_t hdr_len = strlen(header_json);
-        memcpy(frame.header, header_json, hdr_len);
-        frame.header_len = (uint32_t)hdr_len;
+        size_t hdr_written = 0;
+        rc = eipc_header_to_json(&hdr, header_json, sizeof(header_json), &hdr_written);
+        if (rc != EIPC_OK) return rc;
+        memcpy(frame.header, header_json, hdr_written);
+        frame.header_len = (uint32_t)hdr_written;
     }
 
     if (msg->payload_len > 0) {
