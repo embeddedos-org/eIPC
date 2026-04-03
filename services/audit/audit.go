@@ -20,13 +20,13 @@ type Logger interface {
 
 // Entry is a single audit log record.
 type Entry struct {
-	Timestamp  string `json:"timestamp"`
-	RequestID  string `json:"request_id"`
-	Source     string `json:"source"`
-	Target     string `json:"target"`
-	Action     string `json:"action"`
-	Decision   string `json:"decision"`
-	Result     string `json:"result"`
+	Timestamp string `json:"timestamp"`
+	RequestID string `json:"request_id"`
+	Source    string `json:"source"`
+	Target    string `json:"target"`
+	Action    string `json:"action"`
+	Decision  string `json:"decision"`
+	Result    string `json:"result"`
 }
 
 // FileLogger writes audit entries as JSON lines to a file.

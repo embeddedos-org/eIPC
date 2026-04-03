@@ -17,10 +17,10 @@ import (
 
 // PeerIdentity represents an authenticated EIPC peer.
 type PeerIdentity struct {
-	ServiceID    string   `json:"service_id"`
-	Capabilities []string `json:"capabilities"`
-	SessionToken string   `json:"session_token"`
-	CreatedAt    time.Time `json:"created_at"`
+	ServiceID    string        `json:"service_id"`
+	Capabilities []string      `json:"capabilities"`
+	SessionToken string        `json:"session_token"`
+	CreatedAt    time.Time     `json:"created_at"`
 	SessionTTL   time.Duration `json:"-"`
 }
 
@@ -41,12 +41,12 @@ type Challenge struct {
 
 // Authenticator validates peer credentials and issues session tokens.
 type Authenticator struct {
-	mu               sync.RWMutex
-	sharedSecret     []byte
-	knownServices    map[string][]string // service_id → allowed capabilities
-	activeSessions   map[string]*PeerIdentity
+	mu                sync.RWMutex
+	sharedSecret      []byte
+	knownServices     map[string][]string // service_id → allowed capabilities
+	activeSessions    map[string]*PeerIdentity
 	pendingChallenges map[string]*Challenge // serviceID → pending challenge
-	sessionTTL       time.Duration
+	sessionTTL        time.Duration
 }
 
 // NewAuthenticator creates an authenticator with the given shared secret.

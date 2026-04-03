@@ -41,11 +41,11 @@ func main() {
 	maxConns := config.LoadMaxConnections()
 
 	authenticator := auth.NewAuthenticator(sharedSecret, map[string][]string{
-		"nia.min":           {"ui:control", "device:read"},
-		"nia.framework":     {"ui:control", "device:read", "device:write"},
-		"ail.min.agent":     {"ui:control"},
-		"ail.framework":     {"ui:control", "device:read", "device:write", "system:restricted"},
-		"ebot.client":       {"ai:chat"},
+		"nia.min":       {"ui:control", "device:read"},
+		"nia.framework": {"ui:control", "device:read", "device:write"},
+		"ail.min.agent": {"ui:control"},
+		"ail.framework": {"ui:control", "device:read", "device:write", "system:restricted"},
+		"ebot.client":   {"ai:chat"},
 	})
 	authenticator.SetSessionTTL(sessionTTL)
 
@@ -370,10 +370,10 @@ func handleConnection(
 		_ = auditLogger.Log(audit.Entry{
 			RequestID: authMsg.RequestID,
 			Source:    authReq.ServiceID,
-			Target:   "eipc-server",
-			Action:   "authenticate",
-			Decision: "denied",
-			Result:   err.Error(),
+			Target:    "eipc-server",
+			Action:    "authenticate",
+			Decision:  "denied",
+			Result:    err.Error(),
 		})
 		type authResponse struct {
 			Status string `json:"status"`
@@ -446,10 +446,10 @@ func handleConnection(
 		_ = auditLogger.Log(audit.Entry{
 			RequestID: authMsg.RequestID,
 			Source:    authReq.ServiceID,
-			Target:   "eipc-server",
-			Action:   "authenticate",
-			Decision: "denied",
-			Result:   "challenge-response failed",
+			Target:    "eipc-server",
+			Action:    "authenticate",
+			Decision:  "denied",
+			Result:    "challenge-response failed",
 		})
 		type authResponse struct {
 			Status string `json:"status"`
@@ -476,10 +476,10 @@ func handleConnection(
 	_ = auditLogger.Log(audit.Entry{
 		RequestID: authMsg.RequestID,
 		Source:    peer.ServiceID,
-		Target:   "eipc-server",
-		Action:   "authenticate",
-		Decision: "allowed",
-		Result:   "session created",
+		Target:    "eipc-server",
+		Action:    "authenticate",
+		Decision:  "allowed",
+		Result:    "session created",
 	})
 
 	// Set peer capabilities on the endpoint for validation
@@ -534,10 +534,10 @@ func handleConnection(
 			_ = auditLogger.Log(audit.Entry{
 				RequestID: msg.RequestID,
 				Source:    peer.ServiceID,
-				Target:   "eipc-server",
-				Action:   msg.Capability,
-				Decision: "denied",
-				Result:   "capability violation",
+				Target:    "eipc-server",
+				Action:    msg.Capability,
+				Decision:  "denied",
+				Result:    "capability violation",
 			})
 			errPayload, _ := codec.Marshal(core.AckEvent{
 				RequestID: msg.RequestID,

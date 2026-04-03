@@ -25,7 +25,7 @@ const (
 type Verdict int
 
 const (
-	VerdictAllow   Verdict = iota
+	VerdictAllow Verdict = iota
 	VerdictDeny
 	VerdictConfirm // Requires operator approval
 )
@@ -41,7 +41,7 @@ type Rule struct {
 
 // Request represents an action request to be evaluated.
 type Request struct {
-	Source      string
+	Source     string
 	Action     string
 	Capability string
 	RequestID  string
@@ -150,9 +150,9 @@ func (e *Engine) Evaluate(req Request) Result {
 		e.audit.Log(audit.Entry{
 			RequestID: req.RequestID,
 			Source:    req.Source,
-			Action:   req.Action,
-			Decision: decision,
-			Result:   result.Reason,
+			Action:    req.Action,
+			Decision:  decision,
+			Result:    result.Reason,
 		})
 	}
 

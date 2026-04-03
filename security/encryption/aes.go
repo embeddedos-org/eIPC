@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	ErrInvalidKeySize    = errors.New("eipc: encryption key must be 32 bytes (AES-256)")
+	ErrInvalidKeySize     = errors.New("eipc: encryption key must be 32 bytes (AES-256)")
 	ErrCiphertextTooShort = errors.New("eipc: ciphertext too short")
 )
 

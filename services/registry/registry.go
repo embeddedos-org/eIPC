@@ -13,8 +13,8 @@ import (
 // ServiceInfo describes a registered EIPC service.
 type ServiceInfo struct {
 	ServiceID    string             `json:"service_id"`
-	Capabilities []string          `json:"capabilities"`
-	Versions     []uint16          `json:"versions"`
+	Capabilities []string           `json:"capabilities"`
+	Versions     []uint16           `json:"versions"`
 	MessageTypes []core.MessageType `json:"message_types"`
 	Priority     core.Priority      `json:"priority"`
 }
