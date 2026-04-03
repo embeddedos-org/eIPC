@@ -67,7 +67,7 @@ jobs:
               -o dist/${NAME}${EXT} ./${cmd} 2>/dev/null || true
           done
           tar czf eipc-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: eipc-${{ matrix.goos }}-${{ matrix.goarch }}
           path: "*.tar.gz"
