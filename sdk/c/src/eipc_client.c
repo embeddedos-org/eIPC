@@ -56,10 +56,9 @@ static eipc_status_t build_and_send(eipc_client_t *c,
     frame.msg_type = msg_type;
     frame.flags = EIPC_FLAG_HMAC;
 
-    rc = eipc_header_to_json(hdr, header_json, sizeof(header_json));
+        size_t hdr_json_len = 0;
+    rc = eipc_header_to_json(hdr, header_json, sizeof(header_json), &hdr_json_len);
     if (rc != EIPC_OK) return rc;
-
-    size_t hdr_json_len = strlen(header_json);
     memcpy(frame.header, header_json, hdr_json_len);
     frame.header_len = (uint32_t)hdr_json_len;
 
@@ -136,7 +135,8 @@ eipc_status_t eipc_client_send_intent(eipc_client_t *c,
     strncpy(ev.intent, intent, sizeof(ev.intent) - 1);
     ev.confidence = confidence;
 
-    rc = eipc_intent_to_json(&ev, payload_json, sizeof(payload_json));
+    size_t payload_written = 0;
+    rc = eipc_intent_to_json(&ev, payload_json, sizeof(payload_json), &payload_written);
     if (rc != EIPC_OK) return rc;
 
     return build_and_send(c, EIPC_MSG_INTENT, &hdr,
@@ -167,7 +167,8 @@ eipc_status_t eipc_client_send_tool_request(eipc_client_t *c,
         req.arg_count = n;
     }
 
-    rc = eipc_tool_request_to_json(&req, payload_json, sizeof(payload_json));
+    size_t payload_written = 0;
+    rc = eipc_tool_request_to_json(&req, payload_json, sizeof(payload_json), &payload_written);
     if (rc != EIPC_OK) return rc;
 
     return build_and_send(c, EIPC_MSG_TOOL_REQUEST, &hdr,
@@ -190,7 +191,8 @@ eipc_status_t eipc_client_send_heartbeat(eipc_client_t *c) {
     strncpy(hb.service, c->service_id, sizeof(hb.service) - 1);
     strncpy(hb.status, "alive", sizeof(hb.status) - 1);
 
-    rc = eipc_heartbeat_to_json(&hb, payload_json, sizeof(payload_json));
+    size_t payload_written = 0;
+    rc = eipc_heartbeat_to_json(&hb, payload_json, sizeof(payload_json), &payload_written);
     if (rc != EIPC_OK) return rc;
 
     return build_and_send(c, EIPC_MSG_HEARTBEAT, &hdr,
