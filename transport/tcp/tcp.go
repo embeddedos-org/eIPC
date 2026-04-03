@@ -66,7 +66,6 @@ func (t *Transport) Listen(address string) error {
 func (t *Transport) Dial(address string) (transport.Connection, error) {
 	if t.tlsConfig != nil {
 		clientTLS := t.tlsConfig.Clone()
-		clientTLS.InsecureSkipVerify = true
 		conn, err := tls.Dial("tcp", address, clientTLS)
 		if err != nil {
 			return nil, fmt.Errorf("tcp tls dial: %w", err)
