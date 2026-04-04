@@ -119,7 +119,10 @@ func (a *Authenticator) VerifyResponse(serviceID string, response []byte) (*Peer
 		return nil, fmt.Errorf("%w: challenge-response verification failed for %q", core.ErrAuth, serviceID)
 	}
 
-	caps := a.knownServices[serviceID]
+	capsSrc := a.knownServices[serviceID]
+	caps := make([]string, len(capsSrc))
+	copy(caps, capsSrc)
+	copy(caps, a.knownServices[serviceID])
 	token, err := generateToken()
 	if err != nil {
 		return nil, fmt.Errorf("generate token: %w", err)
@@ -141,11 +144,17 @@ func (a *Authenticator) VerifyResponse(serviceID string, response []byte) (*Peer
 func (a *Authenticator) Authenticate(serviceID string) (*PeerIdentity, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
-	caps, ok := a.knownServices[serviceID]
+	capsSrc, ok := a.knownServices[serviceID]
+	capsSrc, ok := a.knownServices[serviceID]
 	if !ok {
 		return nil, fmt.Errorf("%w: unknown service %q", core.ErrAuth, serviceID)
 	}
+	caps := make([]string, len(capsSrc))
+	copy(caps, capsSrc)
+
+
+	caps := make([]string, len(capsSrc))
+	copy(caps, capsSrc)
 
 	token, err := generateToken()
 	if err != nil {

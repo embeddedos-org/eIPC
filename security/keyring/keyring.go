@@ -107,8 +107,23 @@ func (kr *Keyring) Rotate(id string, keyLen int, ttl time.Duration) (*KeyEntry, 
 		kr.keys[oldID] = old
 		delete(kr.keys, id)
 	}
+
+	if keyLen <= 0 {
+		keyLen = 32
+	}
+	raw := make([]byte, keyLen)
+	if _, err := rand.Read(raw); err != nil {
+		kr.mu.Unlock()
+		return nil, fmt.Errorf("generate random key: %w", err)
+	}
+	now := time.Now().UTC()
+	entry := &KeyEntry{ID: id, Key: raw, CreatedAt: now}
+	if ttl > 0 {
+		entry.ExpiresAt = now.Add(ttl)
+	}
+	kr.keys[id] = entry
 	kr.mu.Unlock()
-	return kr.Generate(id, keyLen, ttl)
+	return entry, nil
 }
 
 func (kr *Keyring) ListActive() []KeyEntry {
@@ -129,7 +144,9 @@ func (kr *Keyring) ListActive() []KeyEntry {
 }
 
 func (kr *Keyring) Cleanup() int {
-	kr.mu.Lock()
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand: " + err.Error())
+	}
 	defer kr.mu.Unlock()
 	now := time.Now()
 	removed := 0

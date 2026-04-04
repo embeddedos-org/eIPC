@@ -44,6 +44,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("dial: %v", err)
 	}
+	defer conn.Close()
+	defer conn.Close()
 
 	endpoint := core.NewClientEndpoint(conn, codec, sharedSecret, "")
 
@@ -84,9 +86,17 @@ func main() {
 	if challenge.Status == "denied" {
 		log.Fatalf("[AUTH] rejected: %s", challenge.Error)
 	}
-
-	log.Printf("[2] Received challenge nonce: %s...%s",
-		challenge.Nonce[:8], challenge.Nonce[len(challenge.Nonce)-8:])
+	if len(challenge.Nonce) >= 16 {
+		log.Printf("[2] Received challenge nonce: %s...%s",
+			challenge.Nonce[:8], challenge.Nonce[len(challenge.Nonce)-8:])
+	} else {
+		log.Printf("[2] Received challenge nonce: %s", challenge.Nonce)
+	}
+		log.Printf("[2] Received challenge nonce: %s...%s",
+			challenge.Nonce[:8], challenge.Nonce[len(challenge.Nonce)-8:])
+	} else {
+		log.Printf("[2] Received challenge nonce: %s", challenge.Nonce)
+	}
 
 	// Step 3: Compute HMAC-SHA256(secret, nonce) and send response
 	nonceBytes, err := hex.DecodeString(challenge.Nonce)
@@ -135,13 +145,21 @@ func main() {
 		log.Fatalf("unmarshal auth response: %v", err)
 	}
 
-	if authRes.Status != "ok" {
-		log.Fatalf("[AUTH] rejected: %s", authRes.Error)
+	if len(sessionToken) >= 16 {
+		log.Printf("[3] Authenticated! token=%s...%s caps=%v",
+			sessionToken[:8], sessionToken[len(sessionToken)-8:], authRes.Capabilities)
+	} else {
+		log.Printf("[3] Authenticated! token=%s caps=%v", sessionToken, authRes.Capabilities)
+	}
 	}
 
 	sessionToken := authRes.SessionToken
-	log.Printf("[3] Authenticated! token=%s...%s caps=%v",
-		sessionToken[:8], sessionToken[len(sessionToken)-8:], authRes.Capabilities)
+	if len(sessionToken) >= 16 {
+		log.Printf("[3] Authenticated! token=%s...%s caps=%v",
+			sessionToken[:8], sessionToken[len(sessionToken)-8:], authRes.Capabilities)
+	} else {
+		log.Printf("[3] Authenticated! token=%s caps=%v", sessionToken, authRes.Capabilities)
+	}
 
 	// Step 5: Send HMAC-protected intent
 	log.Println("[4] Sending intent: move_left (confidence=0.91)")

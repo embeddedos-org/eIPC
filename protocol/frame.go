@@ -101,9 +101,7 @@ func Decode(r io.Reader) (*Frame, error) {
 	headerLen := binary.BigEndian.Uint32(preamble[8:12])
 	payloadLen := binary.BigEndian.Uint32(preamble[12:16])
 
-	totalLen := headerLen + payloadLen
-	if totalLen > MaxFrameSize {
-		return nil, ErrFrameTooLarge
+	if uint64(headerLen)+uint64(payloadLen) > uint64(MaxFrameSize) {
 	}
 
 	if headerLen > 0 {

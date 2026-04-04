@@ -114,7 +114,5 @@ func GracefulShutdown(endpoint Endpoint, timeout time.Duration) error {
 	case err := <-done:
 		return err
 	case <-time.After(timeout):
-		endpoint.Close()
-		return fmt.Errorf("eipc: graceful shutdown timed out after %v", timeout)
 	}
 }

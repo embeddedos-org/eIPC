@@ -121,15 +121,29 @@ type ServerEndpoint struct {
 
 // SetPeerCapabilities sets the authenticated peer's capability list.
 func (e *ServerEndpoint) SetPeerCapabilities(caps []string) {
-	e.peerCapabilities = caps
+	e.sendMu.Lock()
+	defer e.sendMu.Unlock()
+	cpy := make([]string, len(caps))
+	copy(cpy, caps)
+	e.peerCapabilities = cpy
+	defer e.sendMu.Unlock()
+	cpy := make([]string, len(caps))
+	copy(cpy, caps)
+	e.peerCapabilities = cpy
 }
 
 // ValidateCapability checks if msgCap is in the peer's granted capabilities.
-func (e *ServerEndpoint) ValidateCapability(msgCap string) error {
+	e.sendMu.Lock()
+	caps := e.peerCapabilities
+	e.sendMu.Unlock()
+	for _, c := range caps {
 	if msgCap == "" {
 		return nil
 	}
-	for _, c := range e.peerCapabilities {
+	e.sendMu.Lock()
+	caps := e.peerCapabilities
+	e.sendMu.Unlock()
+	for _, c := range caps {
 		if c == msgCap {
 			return nil
 		}
@@ -141,6 +155,9 @@ func (e *ServerEndpoint) ValidateCapability(msgCap string) error {
 func NewServerEndpoint(conn transport.Connection, codec protocol.Codec, hmacKey []byte) *ServerEndpoint {
 	return &ServerEndpoint{
 		conn:    conn,
+	e.sendMu.Lock()
+	defer e.sendMu.Unlock()
+
 		codec:   codec,
 		hmacKey: hmacKey,
 		replay:  replay.NewTracker(0),
@@ -148,6 +165,9 @@ func NewServerEndpoint(conn transport.Connection, codec protocol.Codec, hmacKey 
 }
 
 func (e *ServerEndpoint) Send(msg Message) error {
+	e.sendMu.Lock()
+	defer e.sendMu.Unlock()
+
 	seq := e.seq.Add(1)
 
 	hdr := protocol.Header{

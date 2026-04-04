@@ -79,6 +79,12 @@ func (rb *RingBuffer) Write(frame *protocol.Frame) error {
 		return fmt.Errorf("frame too large for slot (%d > %d)", len(data), rb.slotSize-2)
 	}
 
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+
 	head := rb.head.Load()
 	tail := rb.tail.Load()
 
@@ -86,14 +92,10 @@ func (rb *RingBuffer) Write(frame *protocol.Frame) error {
 		return fmt.Errorf("ring buffer full (backpressure)")
 	}
 
-	idx := int(head % uint64(rb.slots))
 	offset := idx * rb.slotSize
 
-	rb.mu.Lock()
 	rb.buf[offset] = byte(len(data) >> 8)
-	rb.buf[offset+1] = byte(len(data))
 	copy(rb.buf[offset+2:], data)
-	rb.mu.Unlock()
 
 	rb.head.Add(1)
 	return nil

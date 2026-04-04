@@ -2,8 +2,8 @@
 
 BINARY_SERVER = eipc-server
 BINARY_CLIENT = eipc-client
-VERSION       ?= 0.1.0
-LDFLAGS       = -s -w
+VERSION       ?= 0.2.0
+LDFLAGS       = -s -w -X main.version=$(VERSION)
 BUILD_DIR     = bin
 
 # Default: build for current platform
