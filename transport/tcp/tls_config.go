@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -63,6 +64,9 @@ func GenerateSelfSignedCert() (tls.Certificate, error) {
 // LoadTLSConfig builds a *tls.Config from cert/key/CA file paths.
 // If caFile is provided, mTLS (RequireAndVerifyClientCert) is enabled.
 func LoadTLSConfig(certFile, keyFile, caFile string) (*tls.Config, error) {
+	certFile = filepath.Clean(certFile)
+	keyFile = filepath.Clean(keyFile)
+
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("load key pair: %w", err)
@@ -74,6 +78,7 @@ func LoadTLSConfig(certFile, keyFile, caFile string) (*tls.Config, error) {
 	}
 
 	if caFile != "" {
+		caFile = filepath.Clean(caFile)
 		caPEM, err := os.ReadFile(caFile)
 		if err != nil {
 			return nil, fmt.Errorf("read CA file: %w", err)

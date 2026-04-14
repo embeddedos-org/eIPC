@@ -6,6 +6,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 )
@@ -18,6 +19,7 @@ func LoadHMACKey() ([]byte, error) {
 	}
 
 	if path := os.Getenv("EIPC_KEY_FILE"); path != "" {
+		path = filepath.Clean(path)
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("read key file %q: %w", path, err)

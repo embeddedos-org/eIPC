@@ -111,7 +111,7 @@ func (e *ClientEndpoint) Close() error {
 // ServerEndpoint handles a single server-side connection.
 type ServerEndpoint struct {
 	conn             transport.Connection
-	codec            protocol.Codec
+	codec             protocol.Codec
 	hmacKey          []byte
 	replay           *replay.Tracker
 	sendMu           sync.Mutex
@@ -126,17 +126,10 @@ func (e *ServerEndpoint) SetPeerCapabilities(caps []string) {
 	cpy := make([]string, len(caps))
 	copy(cpy, caps)
 	e.peerCapabilities = cpy
-	defer e.sendMu.Unlock()
-	cpy := make([]string, len(caps))
-	copy(cpy, caps)
-	e.peerCapabilities = cpy
 }
 
 // ValidateCapability checks if msgCap is in the peer's granted capabilities.
-	e.sendMu.Lock()
-	caps := e.peerCapabilities
-	e.sendMu.Unlock()
-	for _, c := range caps {
+func (e *ServerEndpoint) ValidateCapability(msgCap string) error {
 	if msgCap == "" {
 		return nil
 	}
@@ -155,9 +148,6 @@ func (e *ServerEndpoint) SetPeerCapabilities(caps []string) {
 func NewServerEndpoint(conn transport.Connection, codec protocol.Codec, hmacKey []byte) *ServerEndpoint {
 	return &ServerEndpoint{
 		conn:    conn,
-	e.sendMu.Lock()
-	defer e.sendMu.Unlock()
-
 		codec:   codec,
 		hmacKey: hmacKey,
 		replay:  replay.NewTracker(0),

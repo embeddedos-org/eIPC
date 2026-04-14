@@ -144,9 +144,7 @@ func (kr *Keyring) ListActive() []KeyEntry {
 }
 
 func (kr *Keyring) Cleanup() int {
-	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand: " + err.Error())
-	}
+	kr.mu.Lock()
 	defer kr.mu.Unlock()
 	now := time.Now()
 	removed := 0

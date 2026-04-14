@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 /* --------------- utility implementations --------------- */
@@ -33,6 +34,7 @@ static void fill_header(eipc_header_t *h,
                         uint64_t sequence) {
     memset(h, 0, sizeof(*h));
     strncpy(h->service_id, service_id, sizeof(h->service_id) - 1);
+    h->service_id[sizeof(h->service_id) - 1] = '\0';
     eipc_generate_request_id(h->request_id, sizeof(h->request_id));
     h->sequence = sequence;
     eipc_timestamp_now(h->timestamp, sizeof(h->timestamp));
@@ -91,6 +93,7 @@ eipc_status_t eipc_client_init(eipc_client_t *c, const char *service_id) {
     memset(c, 0, sizeof(*c));
     c->sock = EIPC_INVALID_SOCKET;
     strncpy(c->service_id, service_id, sizeof(c->service_id) - 1);
+    c->service_id[sizeof(c->service_id) - 1] = '\0';
 
     return EIPC_OK;
 }
@@ -133,6 +136,7 @@ eipc_status_t eipc_client_send_intent(eipc_client_t *c,
 
     memset(&ev, 0, sizeof(ev));
     strncpy(ev.intent, intent, sizeof(ev.intent) - 1);
+    ev.intent[sizeof(ev.intent) - 1] = '\0';
     ev.confidence = confidence;
 
     size_t payload_written = 0;
@@ -160,6 +164,7 @@ eipc_status_t eipc_client_send_tool_request(eipc_client_t *c,
 
     memset(&req, 0, sizeof(req));
     strncpy(req.tool, tool, sizeof(req.tool) - 1);
+    req.tool[sizeof(req.tool) - 1] = '\0';
     if (args && arg_count > 0) {
         int n = arg_count;
         if (n > EIPC_MAX_ARGS) n = EIPC_MAX_ARGS;
@@ -189,7 +194,9 @@ eipc_status_t eipc_client_send_heartbeat(eipc_client_t *c) {
 
     memset(&hb, 0, sizeof(hb));
     strncpy(hb.service, c->service_id, sizeof(hb.service) - 1);
+    hb.service[sizeof(hb.service) - 1] = '\0';
     strncpy(hb.status, "alive", sizeof(hb.status) - 1);
+    hb.status[sizeof(hb.status) - 1] = '\0';
 
     size_t payload_written = 0;
     rc = eipc_heartbeat_to_json(&hb, payload_json, sizeof(payload_json), &payload_written);
@@ -210,6 +217,7 @@ eipc_status_t eipc_client_send_chat(eipc_client_t *c,
     c->sequence++;
     fill_header(&hdr, c->service_id, c->sequence);
     strncpy(hdr.capability, "ai:chat", sizeof(hdr.capability) - 1);
+    hdr.capability[sizeof(hdr.capability) - 1] = '\0';
 
     size_t chat_written = 0;
     rc = eipc_chat_request_to_json(req, payload_json, sizeof(payload_json), &chat_written);
@@ -231,6 +239,7 @@ eipc_status_t eipc_client_send_complete(eipc_client_t *c,
     c->sequence++;
     fill_header(&hdr, c->service_id, c->sequence);
     strncpy(hdr.capability, "ai:chat", sizeof(hdr.capability) - 1);
+    hdr.capability[sizeof(hdr.capability) - 1] = '\0';
 
     n = snprintf(payload_json, sizeof(payload_json),
         "{\"session_id\":\"%s\",\"prompt\":\"%s\",\"model\":\"\",\"max_tokens\":0}",
@@ -272,10 +281,14 @@ eipc_status_t eipc_client_receive(eipc_client_t *c, eipc_message_t *msg) {
     if (rc != EIPC_OK) return rc;
 
     strncpy(msg->source, hdr.service_id, sizeof(msg->source) - 1);
+    msg->source[sizeof(msg->source) - 1] = '\0';
     strncpy(msg->session_id, hdr.session_id, sizeof(msg->session_id) - 1);
+    msg->session_id[sizeof(msg->session_id) - 1] = '\0';
     strncpy(msg->request_id, hdr.request_id, sizeof(msg->request_id) - 1);
+    msg->request_id[sizeof(msg->request_id) - 1] = '\0';
     msg->priority = hdr.priority;
     strncpy(msg->capability, hdr.capability, sizeof(msg->capability) - 1);
+    msg->capability[sizeof(msg->capability) - 1] = '\0';
 
     if (frame.payload_len > 0) {
         if (frame.payload_len > sizeof(msg->payload))

@@ -50,6 +50,10 @@ const FrameFixedSize = 4 + 2 + 1 + 1 + 4 + 4 // 16 bytes
 
 // Encode writes the frame to w in the EIPC wire format.
 func (f *Frame) Encode(w io.Writer) error {
+	if uint64(len(f.Header))+uint64(len(f.Payload)) > uint64(MaxFrameSize) {
+		return ErrFrameTooLarge
+	}
+
 	buf := make([]byte, FrameFixedSize)
 	binary.BigEndian.PutUint32(buf[0:4], MagicBytes)
 	binary.BigEndian.PutUint16(buf[4:6], f.Version)
@@ -102,6 +106,7 @@ func Decode(r io.Reader) (*Frame, error) {
 	payloadLen := binary.BigEndian.Uint32(preamble[12:16])
 
 	if uint64(headerLen)+uint64(payloadLen) > uint64(MaxFrameSize) {
+		return nil, ErrFrameTooLarge
 	}
 
 	if headerLen > 0 {
@@ -131,6 +136,9 @@ func Decode(r io.Reader) (*Frame, error) {
 // SignableBytes returns the portion of the frame that is covered by the MAC
 // (everything except the MAC itself).
 func (f *Frame) SignableBytes() []byte {
+	if uint64(len(f.Header))+uint64(len(f.Payload)) > uint64(MaxFrameSize) {
+		return nil
+	}
 	size := FrameFixedSize + len(f.Header) + len(f.Payload)
 	buf := make([]byte, 0, size)
 

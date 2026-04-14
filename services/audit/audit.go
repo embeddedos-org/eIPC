@@ -42,7 +42,7 @@ func NewFileLogger(path string) (*FileLogger, error) {
 	if path == "" {
 		w = os.Stdout
 	} else {
-		f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("open audit log: %w", err)
 		}

@@ -45,7 +45,6 @@ func main() {
 		log.Fatalf("dial: %v", err)
 	}
 	defer conn.Close()
-	defer conn.Close()
 
 	endpoint := core.NewClientEndpoint(conn, codec, sharedSecret, "")
 
@@ -87,11 +86,6 @@ func main() {
 		log.Fatalf("[AUTH] rejected: %s", challenge.Error)
 	}
 	if len(challenge.Nonce) >= 16 {
-		log.Printf("[2] Received challenge nonce: %s...%s",
-			challenge.Nonce[:8], challenge.Nonce[len(challenge.Nonce)-8:])
-	} else {
-		log.Printf("[2] Received challenge nonce: %s", challenge.Nonce)
-	}
 		log.Printf("[2] Received challenge nonce: %s...%s",
 			challenge.Nonce[:8], challenge.Nonce[len(challenge.Nonce)-8:])
 	} else {
@@ -143,14 +137,6 @@ func main() {
 	var authRes authResult
 	if err := json.Unmarshal(authResp.Payload, &authRes); err != nil {
 		log.Fatalf("unmarshal auth response: %v", err)
-	}
-
-	if len(sessionToken) >= 16 {
-		log.Printf("[3] Authenticated! token=%s...%s caps=%v",
-			sessionToken[:8], sessionToken[len(sessionToken)-8:], authRes.Capabilities)
-	} else {
-		log.Printf("[3] Authenticated! token=%s caps=%v", sessionToken, authRes.Capabilities)
-	}
 	}
 
 	sessionToken := authRes.SessionToken

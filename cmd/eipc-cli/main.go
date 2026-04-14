@@ -11,6 +11,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -194,12 +195,13 @@ func cmdPing(args []string) {
 }
 
 func printMessage(label string, msg core.Message) {
-	var payload interface{}
-	if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-		payload = string(msg.Payload)
+	var indented bytes.Buffer
+	if err := json.Indent(&indented, msg.Payload, "  ", "  "); err != nil {
+		fmt.Printf("[%s] type=%s source=%s req=%s priority=P%d cap=%s\n  payload: %s\n",
+			label, msg.Type, msg.Source, msg.RequestID, msg.Priority, msg.Capability, string(msg.Payload))
+		return
 	}
 
-	payloadJSON, _ := json.MarshalIndent(payload, "  ", "  ")
 	fmt.Printf("[%s] type=%s source=%s req=%s priority=P%d cap=%s\n  payload: %s\n",
-		label, msg.Type, msg.Source, msg.RequestID, msg.Priority, msg.Capability, payloadJSON)
+		label, msg.Type, msg.Source, msg.RequestID, msg.Priority, msg.Capability, indented.String())
 }
