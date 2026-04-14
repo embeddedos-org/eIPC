@@ -159,6 +159,6 @@ func (kr *Keyring) Cleanup() int {
 
 func randomBytes(n int) []byte {
 	b := make([]byte, n)
-	rand.Read(b)
+	_ = rand.Read(b)
 	return b
 }

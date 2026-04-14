@@ -19,7 +19,7 @@ func FuzzFrameDecode(f *testing.F) {
 		Header:  []byte(`{"service_id":"test"}`),
 		Payload: []byte(`{"intent":"move"}`),
 	}
-	frame.Encode(&validFrame)
+	_ = frame.Encode(&validFrame)
 	f.Add(validFrame.Bytes())
 
 	// Seed with minimal valid preamble

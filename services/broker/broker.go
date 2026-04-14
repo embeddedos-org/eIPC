@@ -112,7 +112,7 @@ func (b *Broker) Route(msg core.Message) []RouteResult {
 				decision = "failed"
 				result = err.Error()
 			}
-			b.audit.Log(audit.Entry{
+			_ = b.audit.Log(audit.Entry{
 				RequestID: msg.RequestID, Source: msg.Source,
 				Target: sub.ServiceID, Action: string(msg.Type),
 				Decision: decision, Result: result,

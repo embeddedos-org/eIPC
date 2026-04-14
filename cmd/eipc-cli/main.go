@@ -71,7 +71,7 @@ func cmdSend(args []string) {
 	payload := fs.String("payload", `{}`, "JSON payload")
 	source := fs.String("source", "eipc-cli", "source service ID")
 	capability := fs.String("cap", "", "capability header")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	hmacKey, err := config.LoadHMACKey()
 	if err != nil {
@@ -118,7 +118,7 @@ func cmdListen(args []string) {
 	fs := flag.NewFlagSet("listen", flag.ExitOnError)
 	addr := fs.String("addr", config.LoadListenAddr(), "server address")
 	count := fs.Int("count", 0, "max messages to receive (0=unlimited)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	hmacKey, err := config.LoadHMACKey()
 	if err != nil {
@@ -153,7 +153,7 @@ func cmdListen(args []string) {
 func cmdPing(args []string) {
 	fs := flag.NewFlagSet("ping", flag.ExitOnError)
 	addr := fs.String("addr", config.LoadListenAddr(), "server address")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	hmacKey, err := config.LoadHMACKey()
 	if err != nil {

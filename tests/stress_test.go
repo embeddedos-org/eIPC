@@ -26,7 +26,7 @@ func TestStress_LargePayload(t *testing.T) {
 	addr := transport.Addr()
 
 	payload := make([]byte, 512*1024) // 512KB
-	rand.Read(payload)
+	_ = rand.Read(payload)
 
 	done := make(chan struct{})
 	go func() {

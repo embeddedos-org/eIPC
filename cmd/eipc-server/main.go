@@ -671,8 +671,3 @@ func handleConnection(
 }
 
 // computeChallengeResponse computes HMAC-SHA256(secret, nonce) for client-side auth.
-func computeChallengeResponse(secret, nonce []byte) []byte {
-	mac := hmac.New(sha256.New, secret)
-	mac.Write(nonce)
-	return mac.Sum(nil)
-}

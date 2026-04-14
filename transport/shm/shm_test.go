@@ -62,8 +62,8 @@ func TestRingBufferFull(t *testing.T) {
 		Payload: []byte(`{}`),
 	}
 
-	rb.Write(frame)
-	rb.Write(frame)
+	_ = rb.Write(frame)
+	_ = rb.Write(frame)
 
 	err := rb.Write(frame)
 	if err == nil {

@@ -28,7 +28,7 @@ func TestLoadHMACKey_File(t *testing.T) {
 	os.Unsetenv("EIPC_HMAC_KEY")
 
 	tmpFile := filepath.Join(t.TempDir(), "hmac.key")
-	os.WriteFile(tmpFile, []byte("file-based-key"), 0600)
+	_ = os.WriteFile(tmpFile, []byte("file-based-key"), 0600)
 
 	os.Setenv("EIPC_KEY_FILE", tmpFile)
 	defer os.Unsetenv("EIPC_KEY_FILE")

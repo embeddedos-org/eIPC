@@ -147,7 +147,7 @@ func (e *Engine) Evaluate(req Request) Result {
 		if !result.Allowed {
 			decision = "deny"
 		}
-		e.audit.Log(audit.Entry{
+		_ = e.audit.Log(audit.Entry{
 			RequestID: req.RequestID,
 			Source:    req.Source,
 			Action:    req.Action,
@@ -196,7 +196,7 @@ func (e *Engine) LoadSafeDefaults() {
 		"sensor:read", "device:read", "status:read",
 	}
 	for _, a := range safeActions {
-		e.AddRule(Rule{
+		_ = e.AddRule(Rule{
 			Action:  a,
 			Class:   ActionSafe,
 			Verdict: VerdictAllow,
@@ -208,7 +208,7 @@ func (e *Engine) LoadSafeDefaults() {
 		"iot:publish", "config:write",
 	}
 	for _, a := range controlledActions {
-		e.AddRule(Rule{
+		_ = e.AddRule(Rule{
 			Action:     a,
 			Class:      ActionControlled,
 			Verdict:    VerdictAllow,
@@ -221,7 +221,7 @@ func (e *Engine) LoadSafeDefaults() {
 		"security:modify", "policy:modify",
 	}
 	for _, a := range restrictedActions {
-		e.AddRule(Rule{
+		_ = e.AddRule(Rule{
 			Action:      a,
 			Class:       ActionRestricted,
 			Verdict:     VerdictConfirm,

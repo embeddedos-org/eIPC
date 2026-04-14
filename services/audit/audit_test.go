@@ -93,7 +93,7 @@ func TestFileLogger_TimestampAutoFill(t *testing.T) {
 		t.Fatalf("NewFileLogger: %v", err)
 	}
 
-	logger.Log(Entry{Source: "test", Action: "check"})
+	_ = logger.Log(Entry{Source: "test", Action: "check"})
 	logger.Close()
 
 	data, err := os.ReadFile(tmpFile)
@@ -117,7 +117,7 @@ func TestFileLogger_PresetTimestamp(t *testing.T) {
 	}
 
 	customTS := "2026-01-01T00:00:00Z"
-	logger.Log(Entry{Timestamp: customTS, Source: "test", Action: "check"})
+	_ = logger.Log(Entry{Timestamp: customTS, Source: "test", Action: "check"})
 	logger.Close()
 
 	data, err := os.ReadFile(tmpFile)
