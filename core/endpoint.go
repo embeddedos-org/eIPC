@@ -89,7 +89,10 @@ func (e *ClientEndpoint) Receive() (Message, error) {
 		return Message{}, fmt.Errorf("unmarshal header: %w", err)
 	}
 
-	ts, _ := time.Parse(time.RFC3339Nano, hdr.Timestamp)
+	var ts time.Time
+	if t, err := time.Parse(time.RFC3339Nano, hdr.Timestamp); err == nil {
+		ts = t
+	}
 
 	return Message{
 		Version:    frame.Version,
@@ -111,7 +114,7 @@ func (e *ClientEndpoint) Close() error {
 // ServerEndpoint handles a single server-side connection.
 type ServerEndpoint struct {
 	conn             transport.Connection
-	codec             protocol.Codec
+	codec            protocol.Codec
 	hmacKey          []byte
 	replay           *replay.Tracker
 	sendMu           sync.Mutex
@@ -209,7 +212,10 @@ func (e *ServerEndpoint) Receive() (Message, error) {
 		return Message{}, err
 	}
 
-	ts, _ := time.Parse(time.RFC3339Nano, hdr.Timestamp)
+	var ts time.Time
+	if t, err := time.Parse(time.RFC3339Nano, hdr.Timestamp); err == nil {
+		ts = t
+	}
 
 	return Message{
 		Version:    frame.Version,
@@ -243,6 +249,12 @@ func msgTypeFromByte(b uint8) MessageType {
 		return TypeToolRequest
 	case 'a':
 		return TypeAck
+	case 'A':
+		return TypeAuth
+	case 'H':
+		return TypeChallenge
+	case 'R':
+		return TypeAuthResponse
 	case 'p':
 		return TypePolicyResult
 	case 'h':
@@ -269,6 +281,12 @@ func MsgTypeToByte(mt MessageType) uint8 {
 		return 't'
 	case TypeAck:
 		return 'a'
+	case TypeAuth:
+		return 'A'
+	case TypeChallenge:
+		return 'H'
+	case TypeAuthResponse:
+		return 'R'
 	case TypePolicyResult:
 		return 'p'
 	case TypeHeartbeat:

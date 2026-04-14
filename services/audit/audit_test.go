@@ -6,6 +6,7 @@ package audit
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -31,7 +32,7 @@ func TestFileLogger_Stdout(t *testing.T) {
 }
 
 func TestFileLogger_File(t *testing.T) {
-	tmpFile := t.TempDir() + "/audit.jsonl"
+	tmpFile := filepath.Join(t.TempDir(), "audit.jsonl")
 	logger, err := NewFileLogger(tmpFile)
 	if err != nil {
 		t.Fatalf("NewFileLogger file: %v", err)
@@ -86,7 +87,7 @@ func TestFileLogger_File(t *testing.T) {
 }
 
 func TestFileLogger_TimestampAutoFill(t *testing.T) {
-	tmpFile := t.TempDir() + "/audit-ts.jsonl"
+	tmpFile := filepath.Join(t.TempDir(), "audit-ts.jsonl")
 	logger, err := NewFileLogger(tmpFile)
 	if err != nil {
 		t.Fatalf("NewFileLogger: %v", err)
@@ -95,16 +96,21 @@ func TestFileLogger_TimestampAutoFill(t *testing.T) {
 	logger.Log(Entry{Source: "test", Action: "check"})
 	logger.Close()
 
-	data, _ := os.ReadFile(tmpFile)
+	data, err := os.ReadFile(tmpFile)
+	if err != nil {
+		t.Fatalf("read audit file: %v", err)
+	}
 	var entry Entry
-	json.Unmarshal([]byte(strings.TrimSpace(string(data))), &entry)
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &entry); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
 	if entry.Timestamp == "" {
 		t.Error("timestamp should be auto-filled when empty")
 	}
 }
 
 func TestFileLogger_PresetTimestamp(t *testing.T) {
-	tmpFile := t.TempDir() + "/audit-preset.jsonl"
+	tmpFile := filepath.Join(t.TempDir(), "audit-preset.jsonl")
 	logger, err := NewFileLogger(tmpFile)
 	if err != nil {
 		t.Fatalf("NewFileLogger: %v", err)
@@ -114,9 +120,14 @@ func TestFileLogger_PresetTimestamp(t *testing.T) {
 	logger.Log(Entry{Timestamp: customTS, Source: "test", Action: "check"})
 	logger.Close()
 
-	data, _ := os.ReadFile(tmpFile)
+	data, err := os.ReadFile(tmpFile)
+	if err != nil {
+		t.Fatalf("read audit file: %v", err)
+	}
 	var entry Entry
-	json.Unmarshal([]byte(strings.TrimSpace(string(data))), &entry)
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &entry); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
 	if entry.Timestamp != customTS {
 		t.Errorf("expected preset timestamp %q, got %q", customTS, entry.Timestamp)
 	}

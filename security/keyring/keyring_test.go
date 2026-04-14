@@ -36,8 +36,12 @@ func TestLookupNotFound(t *testing.T) {
 
 func TestRevoke(t *testing.T) {
 	kr := New()
-	kr.Generate("key1", 16, 0)
-	kr.Revoke("key1")
+	if _, err := kr.Generate("key1", 16, 0); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	if err := kr.Revoke("key1"); err != nil {
+		t.Fatalf("Revoke failed: %v", err)
+	}
 	_, err := kr.Lookup("key1")
 	if err == nil {
 		t.Error("expected error for revoked key")
@@ -46,7 +50,9 @@ func TestRevoke(t *testing.T) {
 
 func TestExpiry(t *testing.T) {
 	kr := New()
-	kr.Generate("short", 16, 1*time.Millisecond)
+	if _, err := kr.Generate("short", 16, 1*time.Millisecond); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
 	time.Sleep(5 * time.Millisecond)
 	_, err := kr.Lookup("short")
 	if err == nil {
@@ -57,7 +63,9 @@ func TestExpiry(t *testing.T) {
 func TestStore(t *testing.T) {
 	kr := New()
 	key := []byte("my-secret-key-32-bytes-00000000")
-	kr.Store("ext", key, 0)
+	if err := kr.Store("ext", key, 0); err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
 	found, err := kr.Lookup("ext")
 	if err != nil {
 		t.Fatalf("Lookup failed: %v", err)
@@ -69,12 +77,17 @@ func TestStore(t *testing.T) {
 
 func TestRotate(t *testing.T) {
 	kr := New()
-	kr.Generate("rot", 32, 0)
+	if _, err := kr.Generate("rot", 32, 0); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
 	newEntry, err := kr.Rotate("rot", 32, 0)
 	if err != nil {
 		t.Fatalf("Rotate failed: %v", err)
 	}
-	found, _ := kr.Lookup("rot")
+	found, err := kr.Lookup("rot")
+	if err != nil {
+		t.Fatalf("Lookup failed: %v", err)
+	}
 	if string(found.Key) != string(newEntry.Key) {
 		t.Error("rotated key mismatch")
 	}
@@ -82,10 +95,18 @@ func TestRotate(t *testing.T) {
 
 func TestListActive(t *testing.T) {
 	kr := New()
-	kr.Generate("a1", 16, 0)
-	kr.Generate("a2", 16, 0)
-	kr.Generate("r1", 16, 0)
-	kr.Revoke("r1")
+	if _, err := kr.Generate("a1", 16, 0); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	if _, err := kr.Generate("a2", 16, 0); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	if _, err := kr.Generate("r1", 16, 0); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	if err := kr.Revoke("r1"); err != nil {
+		t.Fatalf("Revoke failed: %v", err)
+	}
 	if len(kr.ListActive()) != 2 {
 		t.Errorf("expected 2 active, got %d", len(kr.ListActive()))
 	}
@@ -93,10 +114,18 @@ func TestListActive(t *testing.T) {
 
 func TestCleanup(t *testing.T) {
 	kr := New()
-	kr.Generate("keep", 16, 0)
-	kr.Generate("exp", 16, 1*time.Millisecond)
-	kr.Generate("rev", 16, 0)
-	kr.Revoke("rev")
+	if _, err := kr.Generate("keep", 16, 0); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	if _, err := kr.Generate("exp", 16, 1*time.Millisecond); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	if _, err := kr.Generate("rev", 16, 0); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	if err := kr.Revoke("rev"); err != nil {
+		t.Fatalf("Revoke failed: %v", err)
+	}
 	time.Sleep(5 * time.Millisecond)
 	removed := kr.Cleanup()
 	if removed != 2 {
@@ -106,7 +135,9 @@ func TestCleanup(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	kr := New()
-	kr.Generate("del", 16, 0)
+	if _, err := kr.Generate("del", 16, 0); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
 	kr.Delete("del")
 	_, err := kr.Lookup("del")
 	if err == nil {

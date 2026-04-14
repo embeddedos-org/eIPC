@@ -5,6 +5,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -26,7 +27,7 @@ func TestLoadHMACKey_EnvVar(t *testing.T) {
 func TestLoadHMACKey_File(t *testing.T) {
 	os.Unsetenv("EIPC_HMAC_KEY")
 
-	tmpFile := t.TempDir() + "/hmac.key"
+	tmpFile := filepath.Join(t.TempDir(), "hmac.key")
 	os.WriteFile(tmpFile, []byte("file-based-key"), 0600)
 
 	os.Setenv("EIPC_KEY_FILE", tmpFile)
