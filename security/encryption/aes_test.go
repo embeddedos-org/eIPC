@@ -6,12 +6,15 @@ package encryption
 import (
 	"bytes"
 	"crypto/rand"
+	"io"
 	"testing"
 )
 
 func TestEncryptDecrypt(t *testing.T) {
 	key := make([]byte, KeySize)
-	rand.Read(key)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
 	plaintext := []byte("hello EIPC encryption")
 
@@ -43,14 +46,21 @@ func TestEncrypt_WrongKeySize(t *testing.T) {
 
 func TestDecrypt_WrongKey(t *testing.T) {
 	key := make([]byte, KeySize)
-	rand.Read(key)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
-	ciphertext, _ := Encrypt(key, []byte("secret data"))
+	ciphertext, err := Encrypt(key, []byte("secret data"))
+	if err != nil {
+		t.Fatalf("Encrypt: %v", err)
+	}
 
 	wrongKey := make([]byte, KeySize)
-	rand.Read(wrongKey)
+	if _, err := io.ReadFull(rand.Reader, wrongKey); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
-	_, err := Decrypt(wrongKey, ciphertext)
+	_, err = Decrypt(wrongKey, ciphertext)
 	if err == nil {
 		t.Fatal("expected error for wrong key")
 	}
@@ -58,16 +68,21 @@ func TestDecrypt_WrongKey(t *testing.T) {
 
 func TestDecrypt_TamperedCiphertext(t *testing.T) {
 	key := make([]byte, KeySize)
-	rand.Read(key)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
-	ciphertext, _ := Encrypt(key, []byte("secret data"))
+	ciphertext, err := Encrypt(key, []byte("secret data"))
+	if err != nil {
+		t.Fatalf("Encrypt: %v", err)
+	}
 
 	// Tamper with the ciphertext (not the nonce)
 	if len(ciphertext) > NonceSize+1 {
 		ciphertext[NonceSize+1] ^= 0xff
 	}
 
-	_, err := Decrypt(key, ciphertext)
+	_, err = Decrypt(key, ciphertext)
 	if err == nil {
 		t.Fatal("expected error for tampered ciphertext")
 	}
@@ -75,7 +90,9 @@ func TestDecrypt_TamperedCiphertext(t *testing.T) {
 
 func TestDecrypt_TooShort(t *testing.T) {
 	key := make([]byte, KeySize)
-	rand.Read(key)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
 	_, err := Decrypt(key, []byte{1, 2, 3})
 	if err == nil {
@@ -85,7 +102,9 @@ func TestDecrypt_TooShort(t *testing.T) {
 
 func TestEncryptDecrypt_EmptyPlaintext(t *testing.T) {
 	key := make([]byte, KeySize)
-	rand.Read(key)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
 	ciphertext, err := Encrypt(key, []byte{})
 	if err != nil {
@@ -104,10 +123,14 @@ func TestEncryptDecrypt_EmptyPlaintext(t *testing.T) {
 
 func TestEncryptDecrypt_LargePayload(t *testing.T) {
 	key := make([]byte, KeySize)
-	rand.Read(key)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
 	plaintext := make([]byte, 1<<16) // 64KB
-	rand.Read(plaintext)
+	if _, err := io.ReadFull(rand.Reader, plaintext); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
 	ciphertext, err := Encrypt(key, plaintext)
 	if err != nil {
@@ -126,10 +149,18 @@ func TestEncryptDecrypt_LargePayload(t *testing.T) {
 
 func TestEncrypt_UniqueNonces(t *testing.T) {
 	key := make([]byte, KeySize)
-	rand.Read(key)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Fatalf("rand.Read: %v", err)
+	}
 
-	ct1, _ := Encrypt(key, []byte("same data"))
-	ct2, _ := Encrypt(key, []byte("same data"))
+	ct1, err := Encrypt(key, []byte("same data"))
+	if err != nil {
+		t.Fatalf("Encrypt 1: %v", err)
+	}
+	ct2, err := Encrypt(key, []byte("same data"))
+	if err != nil {
+		t.Fatalf("Encrypt 2: %v", err)
+	}
 
 	if bytes.Equal(ct1, ct2) {
 		t.Error("two encryptions of same data should produce different ciphertexts (different nonces)")

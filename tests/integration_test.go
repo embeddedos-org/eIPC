@@ -209,21 +209,21 @@ func TestEbot_EIPC_EAI_ChatFlow(t *testing.T) {
 		var authReq struct {
 			ServiceID string `json:"service_id"`
 		}
-		json.Unmarshal(authMsg.Payload, &authReq)
+		_ = json.Unmarshal(authMsg.Payload, &authReq)
 
 		challenge, _ := authenticator.CreateChallenge(authReq.ServiceID)
 		chalPayload, _ := codec.Marshal(map[string]string{
 			"status": "challenge",
 			"nonce":  hex.EncodeToString(challenge.Nonce),
 		})
-		ep.Send(core.Message{Version: 1, Type: core.TypeAck, Source: "server",
+		_ = ep.Send(core.Message{Version: 1, Type: core.TypeAck, Source: "server",
 			Timestamp: time.Now().UTC(), Payload: chalPayload})
 
 		respMsg, _ := ep.Receive()
 		var chalResp struct {
 			Response string `json:"response"`
 		}
-		json.Unmarshal(respMsg.Payload, &chalResp)
+		_ = json.Unmarshal(respMsg.Payload, &chalResp)
 		respBytes, _ := hex.DecodeString(chalResp.Response)
 
 		peer, _ := authenticator.VerifyResponse(authReq.ServiceID, respBytes)
@@ -234,12 +234,12 @@ func TestEbot_EIPC_EAI_ChatFlow(t *testing.T) {
 			"session_token": peer.SessionToken,
 			"capabilities":  peer.Capabilities,
 		})
-		ep.Send(core.Message{Version: 1, Type: core.TypeAck, Source: "server",
+		_ = ep.Send(core.Message{Version: 1, Type: core.TypeAck, Source: "server",
 			Timestamp: time.Now().UTC(), Payload: resultPayload})
 
 		chatMsg, _ := ep.Receive()
 		var chatReq core.ChatRequestEvent
-		codec.Unmarshal(chatMsg.Payload, &chatReq)
+		_ = codec.Unmarshal(chatMsg.Payload, &chatReq)
 
 		chatResp := core.ChatResponseEvent{
 			SessionID:  chatReq.SessionID,
@@ -247,7 +247,7 @@ func TestEbot_EIPC_EAI_ChatFlow(t *testing.T) {
 			TokensUsed: 5,
 		}
 		respPayload, _ := codec.Marshal(chatResp)
-		ep.Send(core.Message{Version: 1, Type: core.TypeChat, Source: "server",
+		_ = ep.Send(core.Message{Version: 1, Type: core.TypeChat, Source: "server",
 			Timestamp: time.Now().UTC(), Payload: respPayload})
 	}()
 
@@ -268,7 +268,7 @@ func TestEbot_EIPC_EAI_ChatFlow(t *testing.T) {
 	var chalData struct {
 		Nonce string `json:"nonce"`
 	}
-	json.Unmarshal(chalMsg.Payload, &chalData)
+	_ = json.Unmarshal(chalMsg.Payload, &chalData)
 	nonceBytes, _ := hex.DecodeString(chalData.Nonce)
 
 	mac := hmac.New(sha256.New, secret)

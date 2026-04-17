@@ -45,7 +45,6 @@ func main() {
 		log.Fatalf("dial: %v", err)
 	}
 	defer conn.Close()
-	defer conn.Close()
 
 	endpoint := core.NewClientEndpoint(conn, codec, sharedSecret, "")
 
@@ -54,23 +53,28 @@ func main() {
 	type authRequest struct {
 		ServiceID string `json:"service_id"`
 	}
-	authPayload, _ := codec.Marshal(authRequest{ServiceID: serviceID})
+	authPayload, err := codec.Marshal(authRequest{ServiceID: serviceID})
+	if err != nil {
+		log.Fatalf("marshal auth request: %v", err)
+	}
 
 	if err := endpoint.Send(core.Message{
 		Version:   core.ProtocolVersion,
-		Type:      core.TypeAck,
+		Type:      core.TypeAuth,
 		Source:    serviceID,
 		Timestamp: time.Now().UTC(),
-		RequestID: "auth-1",
 		Payload:   authPayload,
 	}); err != nil {
-		log.Fatalf("send auth: %v", err)
+		log.Fatalf("send auth request: %v", err)
 	}
 
 	// Step 2: Receive challenge (nonce)
 	challengeMsg, err := endpoint.Receive()
 	if err != nil {
 		log.Fatalf("receive challenge: %v", err)
+	}
+	if challengeMsg.Type != core.TypeChallenge {
+		log.Fatalf("[AUTH] expected TypeChallenge, got %s", challengeMsg.Type)
 	}
 
 	type challengeResponse struct {
@@ -92,11 +96,6 @@ func main() {
 	} else {
 		log.Printf("[2] Received challenge nonce: %s", challenge.Nonce)
 	}
-		log.Printf("[2] Received challenge nonce: %s...%s",
-			challenge.Nonce[:8], challenge.Nonce[len(challenge.Nonce)-8:])
-	} else {
-		log.Printf("[2] Received challenge nonce: %s", challenge.Nonce)
-	}
 
 	// Step 3: Compute HMAC-SHA256(secret, nonce) and send response
 	nonceBytes, err := hex.DecodeString(challenge.Nonce)
@@ -112,26 +111,31 @@ func main() {
 		ServiceID string `json:"service_id"`
 		Response  string `json:"response"`
 	}
-	chalRespPayload, _ := codec.Marshal(authChallengeResponse{
+	chalRespPayload, err := codec.Marshal(authChallengeResponse{
 		ServiceID: serviceID,
 		Response:  hex.EncodeToString(response),
 	})
+	if err != nil {
+		log.Fatalf("marshal challenge response: %v", err)
+	}
 
 	if err := endpoint.Send(core.Message{
 		Version:   core.ProtocolVersion,
-		Type:      core.TypeAck,
+		Type:      core.TypeAuthResponse,
 		Source:    serviceID,
 		Timestamp: time.Now().UTC(),
-		RequestID: "auth-2",
 		Payload:   chalRespPayload,
 	}); err != nil {
-		log.Fatalf("send challenge response: %v", err)
+		log.Fatalf("send auth response: %v", err)
 	}
 
 	// Step 4: Receive session token
 	authResp, err := endpoint.Receive()
 	if err != nil {
 		log.Fatalf("receive auth response: %v", err)
+	}
+	if authResp.Type != core.TypeAuthResponse {
+		log.Fatalf("[AUTH] expected TypeAuthResponse, got %s", authResp.Type)
 	}
 
 	type authResult struct {
@@ -145,14 +149,6 @@ func main() {
 		log.Fatalf("unmarshal auth response: %v", err)
 	}
 
-	if len(sessionToken) >= 16 {
-		log.Printf("[3] Authenticated! token=%s...%s caps=%v",
-			sessionToken[:8], sessionToken[len(sessionToken)-8:], authRes.Capabilities)
-	} else {
-		log.Printf("[3] Authenticated! token=%s caps=%v", sessionToken, authRes.Capabilities)
-	}
-	}
-
 	sessionToken := authRes.SessionToken
 	if len(sessionToken) >= 16 {
 		log.Printf("[3] Authenticated! token=%s...%s caps=%v",
@@ -163,11 +159,14 @@ func main() {
 
 	// Step 5: Send HMAC-protected intent
 	log.Println("[4] Sending intent: move_left (confidence=0.91)")
-	intentPayload, _ := codec.Marshal(core.IntentEvent{
+	intentPayload, err := codec.Marshal(core.IntentEvent{
 		Intent:     "move_left",
 		Confidence: 0.91,
 		SessionID:  sessionToken,
 	})
+	if err != nil {
+		log.Fatalf("marshal intent: %v", err)
+	}
 
 	if err := endpoint.Send(core.Message{
 		Version:    core.ProtocolVersion,
@@ -198,10 +197,13 @@ func main() {
 
 	// Step 7: Send heartbeat
 	log.Println("[6] Sending heartbeat...")
-	hbPayload, _ := codec.Marshal(core.HeartbeatEvent{
+	hbPayload, err := codec.Marshal(core.HeartbeatEvent{
 		Service: serviceID,
 		Status:  "ready",
 	})
+	if err != nil {
+		log.Fatalf("marshal heartbeat: %v", err)
+	}
 
 	if err := endpoint.Send(core.Message{
 		Version:   core.ProtocolVersion,

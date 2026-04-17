@@ -66,20 +66,27 @@ func main() {
 	healthSvc := health.NewService(5*time.Second, 15*time.Second)
 
 	reg := registry.NewRegistry()
-	_ = reg.Register(registry.ServiceInfo{
+	if err := reg.Register(registry.ServiceInfo{
 		ServiceID:    "eipc-server",
 		Capabilities: []string{"ui:control", "device:read", "device:write", "ai:chat"},
 		Versions:     []uint16{1},
-		MessageTypes: []core.MessageType{core.TypeIntent, core.TypeAck, core.TypeHeartbeat, core.TypeAudit, core.TypeChat, core.TypeComplete},
-		Priority:     core.PriorityP0,
-	})
-	_ = reg.Register(registry.ServiceInfo{
+		MessageTypes: []core.MessageType{
+			core.TypeIntent, core.TypeAck, core.TypeHeartbeat, core.TypeAudit,
+			core.TypeChat, core.TypeComplete, core.TypeAuth, core.TypeChallenge, core.TypeAuthResponse,
+		},
+		Priority: core.PriorityP0,
+	}); err != nil {
+		log.Printf("[REGISTRY] failed to register eipc-server: %v", err)
+	}
+	if err := reg.Register(registry.ServiceInfo{
 		ServiceID:    "ebot.client",
 		Capabilities: []string{"ai:chat"},
 		Versions:     []uint16{1},
-		MessageTypes: []core.MessageType{core.TypeChat, core.TypeComplete, core.TypeAck},
+		MessageTypes: []core.MessageType{core.TypeChat, core.TypeComplete, core.TypeAck, core.TypeAuth, core.TypeAuthResponse},
 		Priority:     core.PriorityP1,
-	})
+	}); err != nil {
+		log.Printf("[REGISTRY] failed to register ebot.client: %v", err)
+	}
 
 	router := core.NewRouter()
 
@@ -95,32 +102,39 @@ func main() {
 
 		if err := capChecker.Check([]string{msg.Capability}, "ui.cursor.move"); err != nil {
 			log.Printf("[POLICY] DENIED: %v", err)
-			_ = auditLogger.Log(audit.Entry{
+			if err := auditLogger.Log(audit.Entry{
 				RequestID: msg.RequestID,
 				Source:    msg.Source,
 				Target:    "eipc-server",
 				Action:    intent.Intent,
 				Decision:  "denied",
 				Result:    err.Error(),
-			})
+			}); err != nil {
+				log.Printf("[AUDIT] failed: %v", err)
+			}
 			return nil, err
 		}
 
 		log.Printf("[POLICY] ALLOWED: capability=%s action=%s", msg.Capability, intent.Intent)
 
-		_ = auditLogger.Log(audit.Entry{
+		if err := auditLogger.Log(audit.Entry{
 			RequestID: msg.RequestID,
 			Source:    msg.Source,
 			Target:    "eipc-server",
 			Action:    intent.Intent,
 			Decision:  "allowed",
 			Result:    "success",
-		})
+		}); err != nil {
+			log.Printf("[AUDIT] failed: %v", err)
+		}
 
-		ackPayload, _ := codec.Marshal(core.AckEvent{
+		ackPayload, err := codec.Marshal(core.AckEvent{
 			RequestID: msg.RequestID,
 			Status:    "ok",
 		})
+		if err != nil {
+			return nil, fmt.Errorf("marshal ack: %w", err)
+		}
 
 		ack := core.Message{
 			Version:   core.ProtocolVersion,
@@ -155,28 +169,32 @@ func main() {
 
 		if err := capChecker.Check([]string{msg.Capability}, "ai.chat.send"); err != nil {
 			log.Printf("[POLICY] DENIED chat: %v", err)
-			_ = auditLogger.Log(audit.Entry{
+			if err := auditLogger.Log(audit.Entry{
 				RequestID: msg.RequestID,
 				Source:    msg.Source,
 				Target:    "eipc-server",
 				Action:    "ai.chat.send",
 				Decision:  "denied",
 				Result:    err.Error(),
-			})
+			}); err != nil {
+				log.Printf("[AUDIT] failed: %v", err)
+			}
 			return nil, err
 		}
 
 		log.Printf("[CHAT] from=%s session=%s prompt=%q",
 			msg.Source, chatReq.SessionID, chatReq.UserPrompt)
 
-		_ = auditLogger.Log(audit.Entry{
+		if err := auditLogger.Log(audit.Entry{
 			RequestID: msg.RequestID,
 			Source:    msg.Source,
 			Target:    "eai",
 			Action:    "ai.chat.send",
 			Decision:  "allowed",
 			Result:    "forwarded",
-		})
+		}); err != nil {
+			log.Printf("[AUDIT] failed: %v", err)
+		}
 
 		// TODO: Forward to EAI agent loop. For now, echo acknowledgment.
 		chatResp := core.ChatResponseEvent{
@@ -185,7 +203,10 @@ func main() {
 			Model:      chatReq.Model,
 			TokensUsed: 0,
 		}
-		respPayload, _ := codec.Marshal(chatResp)
+		respPayload, err := codec.Marshal(chatResp)
+		if err != nil {
+			return nil, fmt.Errorf("marshal chat response: %w", err)
+		}
 
 		return &core.Message{
 			Version:   core.ProtocolVersion,
@@ -208,28 +229,32 @@ func main() {
 
 		if err := capChecker.Check([]string{msg.Capability}, "ai.complete.send"); err != nil {
 			log.Printf("[POLICY] DENIED complete: %v", err)
-			_ = auditLogger.Log(audit.Entry{
+			if err := auditLogger.Log(audit.Entry{
 				RequestID: msg.RequestID,
 				Source:    msg.Source,
 				Target:    "eipc-server",
 				Action:    "ai.complete.send",
 				Decision:  "denied",
 				Result:    err.Error(),
-			})
+			}); err != nil {
+				log.Printf("[AUDIT] failed: %v", err)
+			}
 			return nil, err
 		}
 
 		log.Printf("[COMPLETE] from=%s session=%s prompt=%q",
 			msg.Source, completeReq.SessionID, completeReq.Prompt)
 
-		_ = auditLogger.Log(audit.Entry{
+		if err := auditLogger.Log(audit.Entry{
 			RequestID: msg.RequestID,
 			Source:    msg.Source,
 			Target:    "eai",
 			Action:    "ai.complete.send",
 			Decision:  "allowed",
 			Result:    "forwarded",
-		})
+		}); err != nil {
+			log.Printf("[AUDIT] failed: %v", err)
+		}
 
 		completeResp := core.CompleteResponseEvent{
 			SessionID:  completeReq.SessionID,
@@ -237,7 +262,10 @@ func main() {
 			Model:      completeReq.Model,
 			TokensUsed: 0,
 		}
-		respPayload, _ := codec.Marshal(completeResp)
+		respPayload, err := codec.Marshal(completeResp)
+		if err != nil {
+			return nil, fmt.Errorf("marshal complete response: %w", err)
+		}
 
 		return &core.Message{
 			Version:   core.ProtocolVersion,
@@ -308,13 +336,15 @@ func main() {
 			}()
 		default:
 			log.Printf("[CONN] rejected connection from %s: max connections (%d) reached", conn.RemoteAddr(), maxConns)
-			_ = auditLogger.Log(audit.Entry{
+			if err := auditLogger.Log(audit.Entry{
 				Source:   conn.RemoteAddr(),
 				Target:   "eipc-server",
 				Action:   "connect",
 				Decision: "denied",
 				Result:   "connection limit exceeded",
-			})
+			}); err != nil {
+				log.Printf("[AUDIT] failed: %v", err)
+			}
 			conn.Close()
 		}
 	}
@@ -352,6 +382,11 @@ func handleConnection(
 		close(authDone)
 		return
 	}
+	if authMsg.Type != core.TypeAuth {
+		log.Printf("[AUTH] expected TypeAuth, got %s", authMsg.Type)
+		close(authDone)
+		return
+	}
 
 	type authRequest struct {
 		ServiceID string `json:"service_id"`
@@ -367,27 +402,35 @@ func handleConnection(
 	challenge, err := authenticator.CreateChallenge(authReq.ServiceID)
 	if err != nil {
 		log.Printf("[AUTH] REJECTED: %v", err)
-		_ = auditLogger.Log(audit.Entry{
+		if err := auditLogger.Log(audit.Entry{
 			RequestID: authMsg.RequestID,
 			Source:    authReq.ServiceID,
 			Target:    "eipc-server",
 			Action:    "authenticate",
 			Decision:  "denied",
 			Result:    err.Error(),
-		})
+		}); err != nil {
+			log.Printf("[AUDIT] failed: %v", err)
+		}
 		type authResponse struct {
 			Status string `json:"status"`
 			Error  string `json:"error,omitempty"`
 		}
-		respPayload, _ := codec.Marshal(authResponse{Status: "denied", Error: err.Error()})
-		_ = endpoint.Send(core.Message{
-			Version:   core.ProtocolVersion,
-			Type:      core.TypeAck,
-			Source:    "eipc-server",
-			Timestamp: time.Now().UTC(),
-			RequestID: authMsg.RequestID,
-			Payload:   respPayload,
-		})
+		respPayload, err := codec.Marshal(authResponse{Status: "denied", Error: err.Error()})
+		if err != nil {
+			log.Printf("[AUTH] failed to marshal auth response: %v", err)
+		} else {
+			if err := endpoint.Send(core.Message{
+				Version:   core.ProtocolVersion,
+				Type:      core.TypeAuthResponse,
+				Source:    "eipc-server",
+				Timestamp: time.Now().UTC(),
+				RequestID: authMsg.RequestID,
+				Payload:   respPayload,
+			}); err != nil {
+				log.Printf("[AUTH] failed to send auth response: %v", err)
+			}
+		}
 		close(authDone)
 		return
 	}
@@ -396,13 +439,18 @@ func handleConnection(
 		Status string `json:"status"`
 		Nonce  string `json:"nonce"`
 	}
-	challengePayload, _ := codec.Marshal(challengeMessage{
+	challengePayload, err := codec.Marshal(challengeMessage{
 		Status: "challenge",
 		Nonce:  hex.EncodeToString(challenge.Nonce),
 	})
+	if err != nil {
+		log.Printf("[AUTH] failed to marshal challenge: %v", err)
+		close(authDone)
+		return
+	}
 	if err := endpoint.Send(core.Message{
 		Version:   core.ProtocolVersion,
-		Type:      core.TypeAck,
+		Type:      core.TypeChallenge,
 		Source:    "eipc-server",
 		Timestamp: time.Now().UTC(),
 		RequestID: authMsg.RequestID,
@@ -417,6 +465,11 @@ func handleConnection(
 	responseMsg, err := endpoint.Receive()
 	if err != nil {
 		log.Printf("[AUTH] failed to receive challenge response: %v", err)
+		close(authDone)
+		return
+	}
+	if responseMsg.Type != core.TypeAuthResponse {
+		log.Printf("[AUTH] expected TypeAuthResponse, got %s", responseMsg.Type)
 		close(authDone)
 		return
 	}
@@ -443,27 +496,35 @@ func handleConnection(
 	peer, err := authenticator.VerifyResponse(authReq.ServiceID, responseBytes)
 	if err != nil {
 		log.Printf("[AUTH] REJECTED (challenge-response): %v", err)
-		_ = auditLogger.Log(audit.Entry{
+		if err := auditLogger.Log(audit.Entry{
 			RequestID: authMsg.RequestID,
 			Source:    authReq.ServiceID,
 			Target:    "eipc-server",
 			Action:    "authenticate",
 			Decision:  "denied",
 			Result:    "challenge-response failed",
-		})
+		}); err != nil {
+			log.Printf("[AUDIT] failed: %v", err)
+		}
 		type authResponse struct {
 			Status string `json:"status"`
 			Error  string `json:"error,omitempty"`
 		}
-		respPayload, _ := codec.Marshal(authResponse{Status: "denied", Error: err.Error()})
-		_ = endpoint.Send(core.Message{
-			Version:   core.ProtocolVersion,
-			Type:      core.TypeAck,
-			Source:    "eipc-server",
-			Timestamp: time.Now().UTC(),
-			RequestID: authMsg.RequestID,
-			Payload:   respPayload,
-		})
+		respPayload, err := codec.Marshal(authResponse{Status: "denied", Error: err.Error()})
+		if err != nil {
+			log.Printf("[AUTH] failed to marshal auth response: %v", err)
+		} else {
+			if err := endpoint.Send(core.Message{
+				Version:   core.ProtocolVersion,
+				Type:      core.TypeAuthResponse,
+				Source:    "eipc-server",
+				Timestamp: time.Now().UTC(),
+				RequestID: authMsg.RequestID,
+				Payload:   respPayload,
+			}); err != nil {
+				log.Printf("[AUTH] failed to send auth response: %v", err)
+			}
+		}
 		close(authDone)
 		return
 	}
@@ -473,14 +534,16 @@ func handleConnection(
 	log.Printf("[AUTH] ACCEPTED: service=%s token=%s...%s caps=%v",
 		peer.ServiceID, peer.SessionToken[:8], peer.SessionToken[len(peer.SessionToken)-8:], peer.Capabilities)
 
-	_ = auditLogger.Log(audit.Entry{
+	if err := auditLogger.Log(audit.Entry{
 		RequestID: authMsg.RequestID,
 		Source:    peer.ServiceID,
 		Target:    "eipc-server",
 		Action:    "authenticate",
 		Decision:  "allowed",
 		Result:    "session created",
-	})
+	}); err != nil {
+		log.Printf("[AUDIT] failed: %v", err)
+	}
 
 	// Set peer capabilities on the endpoint for validation
 	endpoint.SetPeerCapabilities(peer.Capabilities)
@@ -490,14 +553,18 @@ func handleConnection(
 		SessionToken string   `json:"session_token"`
 		Capabilities []string `json:"capabilities"`
 	}
-	respPayload, _ := codec.Marshal(authResult{
+	respPayload, err := codec.Marshal(authResult{
 		Status:       "ok",
 		SessionToken: peer.SessionToken,
 		Capabilities: peer.Capabilities,
 	})
+	if err != nil {
+		log.Printf("[AUTH] failed to marshal auth result: %v", err)
+		return
+	}
 	if err := endpoint.Send(core.Message{
 		Version:   core.ProtocolVersion,
-		Type:      core.TypeAck,
+		Type:      core.TypeAuthResponse,
 		Source:    "eipc-server",
 		Timestamp: time.Now().UTC(),
 		RequestID: authMsg.RequestID,
@@ -518,63 +585,79 @@ func handleConnection(
 		// Check session TTL
 		if peer.IsExpired() {
 			log.Printf("[SESSION] expired for %s", peer.ServiceID)
-			_ = auditLogger.Log(audit.Entry{
+			if err := auditLogger.Log(audit.Entry{
 				Source:   peer.ServiceID,
 				Target:   "eipc-server",
 				Action:   "session_check",
 				Decision: "denied",
 				Result:   "session expired",
-			})
+			}); err != nil {
+				log.Printf("[AUDIT] failed: %v", err)
+			}
 			return
 		}
 
 		// Enforce capability binding
 		if err := endpoint.ValidateCapability(msg.Capability); err != nil {
 			log.Printf("[CAPABILITY] DENIED: %s tried %s", peer.ServiceID, msg.Capability)
-			_ = auditLogger.Log(audit.Entry{
+			if err := auditLogger.Log(audit.Entry{
 				RequestID: msg.RequestID,
 				Source:    peer.ServiceID,
 				Target:    "eipc-server",
 				Action:    msg.Capability,
 				Decision:  "denied",
 				Result:    "capability violation",
-			})
-			errPayload, _ := codec.Marshal(core.AckEvent{
+			}); err != nil {
+				log.Printf("[AUDIT] failed: %v", err)
+			}
+			errPayload, err := codec.Marshal(core.AckEvent{
 				RequestID: msg.RequestID,
 				Status:    "error",
 				Error:     err.Error(),
 			})
-			_ = endpoint.Send(core.Message{
-				Version:   core.ProtocolVersion,
-				Type:      core.TypeAck,
-				Source:    "eipc-server",
-				Timestamp: time.Now().UTC(),
-				SessionID: msg.SessionID,
-				RequestID: msg.RequestID,
-				Priority:  core.PriorityP0,
-				Payload:   errPayload,
-			})
+			if err != nil {
+				log.Printf("[CAPABILITY] failed to marshal error: %v", err)
+			} else {
+				if err := endpoint.Send(core.Message{
+					Version:   core.ProtocolVersion,
+					Type:      core.TypeAck,
+					Source:    "eipc-server",
+					Timestamp: time.Now().UTC(),
+					SessionID: msg.SessionID,
+					RequestID: msg.RequestID,
+					Priority:  core.PriorityP0,
+					Payload:   errPayload,
+				}); err != nil {
+					log.Printf("[CAPABILITY] failed to send error: %v", err)
+				}
+			}
 			continue
 		}
 
 		resp, err := router.Dispatch(msg)
 		if err != nil {
 			log.Printf("[DISPATCH] error: %v", err)
-			errPayload, _ := codec.Marshal(core.AckEvent{
+			errPayload, err := codec.Marshal(core.AckEvent{
 				RequestID: msg.RequestID,
 				Status:    "error",
 				Error:     err.Error(),
 			})
-			_ = endpoint.Send(core.Message{
-				Version:   core.ProtocolVersion,
-				Type:      core.TypeAck,
-				Source:    "eipc-server",
-				Timestamp: time.Now().UTC(),
-				SessionID: msg.SessionID,
-				RequestID: msg.RequestID,
-				Priority:  core.PriorityP0,
-				Payload:   errPayload,
-			})
+			if err != nil {
+				log.Printf("[DISPATCH] failed to marshal error: %v", err)
+			} else {
+				if err := endpoint.Send(core.Message{
+					Version:   core.ProtocolVersion,
+					Type:      core.TypeAck,
+					Source:    "eipc-server",
+					Timestamp: time.Now().UTC(),
+					SessionID: msg.SessionID,
+					RequestID: msg.RequestID,
+					Priority:  core.PriorityP0,
+					Payload:   errPayload,
+				}); err != nil {
+					log.Printf("[DISPATCH] failed to send error: %v", err)
+				}
+			}
 			continue
 		}
 
@@ -588,8 +671,3 @@ func handleConnection(
 }
 
 // computeChallengeResponse computes HMAC-SHA256(secret, nonce) for client-side auth.
-func computeChallengeResponse(secret, nonce []byte) []byte {
-	mac := hmac.New(sha256.New, secret)
-	mac.Write(nonce)
-	return mac.Sum(nil)
-}

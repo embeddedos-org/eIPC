@@ -30,8 +30,8 @@ func TestBrokerSubscribeAndRoute(t *testing.T) {
 	b := NewBroker(nil, nil)
 	ep1 := &mockEndpoint{}
 	ep2 := &mockEndpoint{}
-	b.Subscribe(&Subscriber{ServiceID: "eai.agent", Endpoint: ep1, Priority: core.PriorityP1})
-	b.Subscribe(&Subscriber{ServiceID: "eai.monitor", Endpoint: ep2, Priority: core.PriorityP2})
+	_ = b.Subscribe(&Subscriber{ServiceID: "eai.agent", Endpoint: ep1, Priority: core.PriorityP1})
+	_ = b.Subscribe(&Subscriber{ServiceID: "eai.monitor", Endpoint: ep2, Priority: core.PriorityP2})
 	b.AddRoute(core.TypeIntent, "eai.agent")
 	msg := core.NewMessage(core.TypeIntent, "eni.min", []byte(`{"intent":"move_left"}`))
 	results := b.Route(msg)
@@ -50,7 +50,7 @@ func TestBrokerFanout(t *testing.T) {
 	b := NewBroker(nil, nil)
 	ep1 := &mockEndpoint{}
 	ep2 := &mockEndpoint{}
-	b.Subscribe(&Subscriber{ServiceID: "svc1", Endpoint: ep1})
+	_ = b.Subscribe(&Subscriber{ServiceID: "svc1", Endpoint: ep1})
 	b.Subscribe(&Subscriber{ServiceID: "svc2", Endpoint: ep2})
 	msg := core.NewMessage(core.TypeHeartbeat, "system", []byte(`{}`))
 	results := b.Fanout(msg)

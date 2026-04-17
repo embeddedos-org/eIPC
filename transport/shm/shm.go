@@ -73,14 +73,10 @@ func NewRingBuffer(cfg Config) *RingBuffer {
 // Write places a frame into the next available slot.
 // Returns ErrBackpressure if the buffer is full.
 func (rb *RingBuffer) Write(frame *protocol.Frame) error {
-	data := make([]byte, 0, protocol.FrameFixedSize+len(frame.Header)+len(frame.Payload))
-	data = append(data, frame.SignableBytes()...)
+	data := frame.SignableBytes()
 	if len(data) > rb.slotSize-2 {
 		return fmt.Errorf("frame too large for slot (%d > %d)", len(data), rb.slotSize-2)
 	}
-
-	rb.mu.Lock()
-	defer rb.mu.Unlock()
 
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
@@ -92,9 +88,11 @@ func (rb *RingBuffer) Write(frame *protocol.Frame) error {
 		return fmt.Errorf("ring buffer full (backpressure)")
 	}
 
+	idx := int(head % uint64(rb.slots))
 	offset := idx * rb.slotSize
 
 	rb.buf[offset] = byte(len(data) >> 8)
+	rb.buf[offset+1] = byte(len(data) & 0xFF)
 	copy(rb.buf[offset+2:], data)
 
 	rb.head.Add(1)
@@ -104,6 +102,9 @@ func (rb *RingBuffer) Write(frame *protocol.Frame) error {
 // Read retrieves the next frame from the buffer.
 // Returns nil if the buffer is empty.
 func (rb *RingBuffer) Read() (*protocol.Frame, error) {
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+
 	head := rb.head.Load()
 	tail := rb.tail.Load()
 
@@ -114,11 +115,12 @@ func (rb *RingBuffer) Read() (*protocol.Frame, error) {
 	idx := int(tail % uint64(rb.slots))
 	offset := idx * rb.slotSize
 
-	rb.mu.Lock()
 	length := int(rb.buf[offset])<<8 | int(rb.buf[offset+1])
+	if length > rb.slotSize-2 {
+		return nil, fmt.Errorf("invalid slot length (%d)", length)
+	}
 	data := make([]byte, length)
 	copy(data, rb.buf[offset+2:offset+2+length])
-	rb.mu.Unlock()
 
 	rb.tail.Add(1)
 

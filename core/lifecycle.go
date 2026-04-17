@@ -86,7 +86,9 @@ func (h *HeartbeatSender) Start() {
 					Priority:  PriorityP3,
 					Payload:   []byte(fmt.Sprintf(`{"service":"%s","status":"alive"}`, h.config.ServiceID)),
 				}
-				h.endpoint.Send(msg)
+				if err := h.endpoint.Send(msg); err != nil {
+					fmt.Printf("heartbeat send failed: %v\n", err)
+				}
 			}
 		}
 	}()
@@ -114,5 +116,6 @@ func GracefulShutdown(endpoint Endpoint, timeout time.Duration) error {
 	case err := <-done:
 		return err
 	case <-time.After(timeout):
+		return fmt.Errorf("shutdown timed out after %v", timeout)
 	}
 }

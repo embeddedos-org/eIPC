@@ -21,7 +21,7 @@ func BenchmarkFrameEncode(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var buf bytes.Buffer
-		frame.Encode(&buf)
+		_ = frame.Encode(&buf)
 	}
 }
 
@@ -36,7 +36,7 @@ func BenchmarkFrameDecode(b *testing.B) {
 	}
 
 	var buf bytes.Buffer
-	frame.Encode(&buf)
+	_ = frame.Encode(&buf)
 	encoded := buf.Bytes()
 
 	b.ResetTimer()

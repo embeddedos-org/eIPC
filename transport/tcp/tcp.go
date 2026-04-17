@@ -78,8 +78,8 @@ func (t *Transport) Dial(address string) (transport.Connection, error) {
 		return nil, fmt.Errorf("tcp dial: %w", err)
 	}
 	if tc, ok := conn.(*net.TCPConn); ok {
-		tc.SetKeepAlive(true)
-		tc.SetKeepAlivePeriod(30 * time.Second)
+		_ = tc.SetKeepAlive(true)
+		_ = tc.SetKeepAlivePeriod(30 * time.Second)
 	}
 	return transport.NewConnWrapper(conn), nil
 }
@@ -101,8 +101,8 @@ func (t *Transport) Accept() (transport.Connection, error) {
 	}
 
 	if tc, ok := conn.(*net.TCPConn); ok {
-		tc.SetKeepAlive(true)
-		tc.SetKeepAlivePeriod(30 * time.Second)
+		_ = tc.SetKeepAlive(true)
+		_ = tc.SetKeepAlivePeriod(30 * time.Second)
 	}
 
 	return transport.NewConnWrapper(conn), nil

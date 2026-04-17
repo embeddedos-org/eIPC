@@ -31,7 +31,7 @@ func TestRegister_EmptyID(t *testing.T) {
 
 func TestLookup(t *testing.T) {
 	reg := NewRegistry()
-	reg.Register(ServiceInfo{
+	_ = reg.Register(ServiceInfo{
 		ServiceID:    "eni.min",
 		Capabilities: []string{"ui:control"},
 	})
@@ -55,7 +55,7 @@ func TestLookup_NotFound(t *testing.T) {
 
 func TestDeregister(t *testing.T) {
 	reg := NewRegistry()
-	reg.Register(ServiceInfo{ServiceID: "eni.min"})
+	_ = reg.Register(ServiceInfo{ServiceID: "eni.min"})
 	reg.Deregister("eni.min")
 
 	_, err := reg.Lookup("eni.min")
@@ -66,7 +66,7 @@ func TestDeregister(t *testing.T) {
 
 func TestList(t *testing.T) {
 	reg := NewRegistry()
-	reg.Register(ServiceInfo{ServiceID: "eni.min"})
+	_ = reg.Register(ServiceInfo{ServiceID: "eni.min"})
 	reg.Register(ServiceInfo{ServiceID: "eai.agent"})
 
 	list := reg.List()

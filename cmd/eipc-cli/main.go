@@ -11,6 +11,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -70,7 +71,7 @@ func cmdSend(args []string) {
 	payload := fs.String("payload", `{}`, "JSON payload")
 	source := fs.String("source", "eipc-cli", "source service ID")
 	capability := fs.String("cap", "", "capability header")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	hmacKey, err := config.LoadHMACKey()
 	if err != nil {
@@ -117,7 +118,7 @@ func cmdListen(args []string) {
 	fs := flag.NewFlagSet("listen", flag.ExitOnError)
 	addr := fs.String("addr", config.LoadListenAddr(), "server address")
 	count := fs.Int("count", 0, "max messages to receive (0=unlimited)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	hmacKey, err := config.LoadHMACKey()
 	if err != nil {
@@ -152,7 +153,7 @@ func cmdListen(args []string) {
 func cmdPing(args []string) {
 	fs := flag.NewFlagSet("ping", flag.ExitOnError)
 	addr := fs.String("addr", config.LoadListenAddr(), "server address")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	hmacKey, err := config.LoadHMACKey()
 	if err != nil {
@@ -194,12 +195,13 @@ func cmdPing(args []string) {
 }
 
 func printMessage(label string, msg core.Message) {
-	var payload interface{}
-	if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-		payload = string(msg.Payload)
+	var indented bytes.Buffer
+	if err := json.Indent(&indented, msg.Payload, "  ", "  "); err != nil {
+		fmt.Printf("[%s] type=%s source=%s req=%s priority=P%d cap=%s\n  payload: %s\n",
+			label, msg.Type, msg.Source, msg.RequestID, msg.Priority, msg.Capability, string(msg.Payload))
+		return
 	}
 
-	payloadJSON, _ := json.MarshalIndent(payload, "  ", "  ")
 	fmt.Printf("[%s] type=%s source=%s req=%s priority=P%d cap=%s\n  payload: %s\n",
-		label, msg.Type, msg.Source, msg.RequestID, msg.Priority, msg.Capability, payloadJSON)
+		label, msg.Type, msg.Source, msg.RequestID, msg.Priority, msg.Capability, indented.String())
 }
