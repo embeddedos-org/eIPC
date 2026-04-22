@@ -1,5 +1,6 @@
-# EIPC — Embedded Inter-Process Communication
+# eIPC — Embedded Inter-Process Communication
 
+[![CI](https://github.com/embeddedos-org/eipc/actions/workflows/ci.yml/badge.svg)](https://github.com/embeddedos-org/eipc/actions/workflows/ci.yml)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)](https://github.com/embeddedos-org/eipc)
