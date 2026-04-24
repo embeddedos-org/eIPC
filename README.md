@@ -489,6 +489,33 @@ eipc/
 └── Makefile            Cross-platform build
 ```
 
+## Security
+
+EIPC is designed for **security-critical embedded environments**. Key security properties:
+
+- **Authentication** — challenge-response (HMAC-SHA256) with session tokens and TTL-based expiry
+- **Authorization** — capability-based access control with runtime grant/revoke
+- **Integrity** — HMAC-SHA256 on every frame; constant-time comparison via `crypto/hmac.Equal`
+- **Replay protection** — sliding-window nonce tracker rejects duplicate sequence numbers
+- **Key management** — in-memory keyring with generation, rotation, expiry, and revocation
+- **Audit logging** — JSON-line logs with per-request tracing (file permissions `0600`)
+- **Policy engine** — three-tier action classification (safe / controlled / restricted)
+- **Zero external dependencies** — pure Go stdlib reduces supply-chain risk
+
+### Reporting Vulnerabilities
+
+If you discover a security vulnerability, please **do not** open a public issue. Instead, email **security@embeddedos.org** with:
+
+1. Description of the vulnerability
+2. Steps to reproduce
+3. Affected versions
+
+We aim to acknowledge reports within 48 hours and provide a fix within 7 days for critical issues.
+
+See [SECURITY.md](SECURITY.md) for the full security policy.
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
