@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eIPC — Inter-Process Communication | EmbeddedOS</title>
+  <meta name="description" content="Secure, real-time IPC framework with Go and C SDKs. Pluggable transports, HMAC-SHA256, capability-based auth, pub/sub broker, and JSON-line audit logging.">
+  <meta name="keywords" content="ipc, inter-process communication, go, c, pub/sub, hmac, security, embedded">
+  <meta name="author" content="EmbeddedOS Organization">
+  <link rel="canonical" href="https://embeddedos-org.github.io/eIPC/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="eIPC — Inter-Process Communication | EmbeddedOS">
+  <meta property="og:description" content="Secure, real-time IPC framework with Go and C SDKs. Pluggable transports, HMAC-SHA256, capability-based auth, pub/sub broker, and JSON-line audit logging.">
+  <meta property="og:url" content="https://embeddedos-org.github.io/eIPC/">
+  <meta property="og:site_name" content="EmbeddedOS">
+  <meta property="og:image" content="https://embeddedos-org.github.io/assets/eipc-og.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="eIPC — Inter-Process Communication | EmbeddedOS">
+  <meta name="twitter:description" content="Secure, real-time IPC framework with Go and C SDKs. Pluggable transports, HMAC-SHA256, capability-based auth, pub/sub broker, and JSON-line audit logging.">
+  <meta name="twitter:image" content="https://embeddedos-org.github.io/assets/eipc-og.png">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "eIPC",
+    "alternateName": "Inter-Process Communication Framework",
+    "description": "Secure, real-time IPC framework with Go and C SDKs. Pluggable transports, HMAC-SHA256, capability-based auth, pub/sub broker, and JSON-line audit logging.",
+    "url": "https://embeddedos-org.github.io/eIPC/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Linux, Embedded",
+    "programmingLanguage": ["Go", "C"],
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "sourceOrganization": {
+      "@type": "Organization",
+      "name": "EmbeddedOS",
+      "url": "https://embeddedos-org.github.io/"
+    },
+    "codeRepository": "https://github.com/embeddedos-org/eIPC"
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="https://embeddedos-org.github.io/" class="logo">
+        <div class="logo-icon" style="background: linear-gradient(135deg, #3a6ea0, #79c0ff);">eI</div>
+        EmbeddedOS
+      </a>
+      <div class="nav-links">
+        <a href="https://embeddedos-org.github.io/">Home</a>
+        <a href="https://embeddedos-org.github.io/eIPC/" class="active">Docs</a>
+        <a href="https://github.com/embeddedos-org/eIPC">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb">
+    <a href="https://embeddedos-org.github.io/">EmbeddedOS</a>
+    <span class="sep">/</span>
+    <span>eIPC</span>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero" style="border-left: 4px solid #79c0ff;">
+    <div class="hero-content">
+      <h1 style="background: linear-gradient(135deg, #79c0ff, var(--purple), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">eIPC — Inter-Process Communication</h1>
+      <p class="subtitle">Secure, real-time IPC framework with Go and C SDKs. Pluggable transports, HMAC-SHA256, capability-based auth, pub/sub broker, and JSON-line audit logging.</p>
+      <div class="hero-badges">
+        <span class="badge badge-cyan">Go &amp; C SDKs</span>
+        <span class="badge badge-blue">Pluggable Transports</span>
+        <span class="badge badge-green">HMAC-SHA256</span>
+        <span class="badge badge-purple">Pub/Sub Broker</span>
+        <span class="badge badge-orange">Audit Logging</span>
+      </div>
+      <div class="hero-buttons">
+        <a href="https://github.com/embeddedos-org/eIPC" class="btn btn-primary" style="background: var(--cyan);">View on GitHub</a>
+        <a href="https://github.com/embeddedos-org/eIPC/releases/tag/v0.2.0-book" class="btn btn-outline">Download Book (PDF)</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section">
+    <h2 class="section-title">Key Features</h2>
+    <p class="section-subtitle">Secure, fast, and flexible inter-process communication</p>
+    <div class="feature-grid">
+      <div class="feature-card" style="border-top: 3px solid #79c0ff;">
+        <h3>Go &amp; C SDKs</h3>
+        <p>First-class SDKs for both Go and C with idiomatic APIs, comprehensive examples, and full documentation for each language.</p>
+      </div>
+      <div class="feature-card" style="border-top: 3px solid #58a6ff;">
+        <h3>Pluggable Transports</h3>
+        <p>Swap transport layers at runtime: TCP sockets, Unix domain sockets, shared memory (SHM), and named pipes — all behind a unified API.</p>
+      </div>
+      <div class="feature-card" style="border-top: 3px solid #3fb950;">
+        <h3>HMAC-SHA256 Integrity</h3>
+        <p>Every message includes HMAC-SHA256 signatures for tamper detection. Key rotation and per-channel secrets are built in.</p>
+      </div>
+      <div class="feature-card" style="border-top: 3px solid #bc8cff;">
+        <h3>Capability-Based Auth</h3>
+        <p>Fine-grained access control using capability tokens. Services declare required capabilities; clients present tokens at connection time.</p>
+      </div>
+      <div class="feature-card" style="border-top: 3px solid #f0883e;">
+        <h3>Pub/Sub Broker</h3>
+        <p>Built-in publish/subscribe broker with topic wildcards, QoS levels, message persistence, and dead-letter queue support.</p>
+      </div>
+      <div class="feature-card" style="border-top: 3px solid #f778ba;">
+        <h3>Policy Engine</h3>
+        <p>Declarative YAML policies for rate limiting, message size limits, connection quotas, and service-level access rules.</p>
+      </div>
+      <div class="feature-card" style="border-top: 3px solid #e3b341;">
+        <h3>Replay Protection</h3>
+        <p>Nonce-based replay protection with configurable time windows. Prevents message replay attacks in security-critical applications.</p>
+      </div>
+      <div class="feature-card" style="border-top: 3px solid #f85149;">
+        <h3>JSON-Line Audit Logging</h3>
+        <p>Structured JSON-line logs for every IPC event — connections, messages, auth decisions, errors — with configurable log sinks and rotation.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Start -->
+  <div class="section-alt">
+    <section class="section">
+      <h2 class="section-title">Quick Start</h2>
+      <p class="section-subtitle">Install eIPC and start communicating between processes</p>
+      <pre><code><span style="color: var(--text-muted);"># Install the Go SDK</span>
+go get github.com/embeddedos-org/eIPC
+
+<span style="color: var(--text-muted);"># Create a simple server</span>
+import "github.com/embeddedos-org/eIPC/server"
+
+srv := server.New(server.WithTransport("unix", "/tmp/eipc.sock"))
+srv.Handle("greeting", func(msg *ipc.Message) {
+    msg.Reply([]byte("Hello from eIPC!"))
+})
+srv.Listen()
+
+<span style="color: var(--text-muted);"># Or use the C SDK</span>
+git clone https://github.com/embeddedos-org/eIPC.git
+cd eIPC &amp;&amp; cmake -B build &amp;&amp; cmake --build build</code></pre>
+    </section>
+  </div>
+
+  <!-- API Highlights -->
+  <section class="section">
+    <h2 class="section-title">API Highlights</h2>
+    <p class="section-subtitle">Core IPC modules</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Description</th>
+          <th>Package / Header</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>transport</code></td>
+          <td>Pluggable transport layer — TCP, Unix, SHM, Pipes</td>
+          <td><code>eipc/transport</code></td>
+        </tr>
+        <tr>
+          <td><code>auth</code></td>
+          <td>Capability-based authentication and token management</td>
+          <td><code>eipc/auth</code></td>
+        </tr>
+        <tr>
+          <td><code>crypto</code></td>
+          <td>HMAC-SHA256 signing, nonce generation, key rotation</td>
+          <td><code>eipc/crypto</code></td>
+        </tr>
+        <tr>
+          <td><code>broker</code></td>
+          <td>Pub/sub broker — topics, wildcards, QoS, persistence</td>
+          <td><code>eipc/broker</code></td>
+        </tr>
+        <tr>
+          <td><code>policy</code></td>
+          <td>Policy engine — rate limits, quotas, access rules</td>
+          <td><code>eipc/policy</code></td>
+        </tr>
+        <tr>
+          <td><code>audit</code></td>
+          <td>JSON-line audit logging with configurable sinks</td>
+          <td><code>eipc/audit</code></td>
+        </tr>
+        <tr>
+          <td><code>client</code></td>
+          <td>Client SDK — connect, send, receive, subscribe</td>
+          <td><code>eipc/client</code></td>
+        </tr>
+        <tr>
+          <td><code>server</code></td>
+          <td>Server SDK — listen, handle, broadcast, middleware</td>
+          <td><code>eipc/server</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <a href="https://embeddedos-org.github.io/eos/">EoS — Embedded OS</a>
+        <a href="https://embeddedos-org.github.io/eBoot/">eBoot — Bootloader</a>
+        <a href="https://embeddedos-org.github.io/ebuild/">ebuild — Build System</a>
+        <a href="https://embeddedos-org.github.io/eIPC/">eIPC — IPC Framework</a>
+        <a href="https://embeddedos-org.github.io/eAI/">eAI — AI Framework</a>
+        <a href="https://github.com/embeddedos-org/eos">GitHub — EoS</a>
+        <a href="https://github.com/embeddedos-org/eBoot">GitHub — eBoot</a>
+        <a href="https://github.com/embeddedos-org/ebuild">GitHub — ebuild</a>
+        <a href="https://github.com/embeddedos-org/eIPC">GitHub — eIPC</a>
+        <a href="https://github.com/embeddedos-org/eAI">GitHub — eAI</a>
+      </div>
+      <div class="footer-bottom">
+        &copy; 2025 EmbeddedOS Organization. Open-source under the MIT License.
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
