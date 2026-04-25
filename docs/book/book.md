@@ -30,6 +30,9 @@ titlepage-background: "cover.png"
 
 ## Preface
 
+
+![Figure: eIPC — 3D Product Visualization](images/product-3d.png)
+
 eIPC (Embedded Inter-Process Communication) is a standalone, cross-platform, security-enhanced IPC framework designed for communication between components in the EmbeddedOS ecosystem — particularly between the ENI (Neural Interface) and EAI (AI Layer) subsystems. Built entirely in Go with zero external dependencies, eIPC provides a production-grade message passing system with built-in authentication, authorization, integrity verification, and audit logging.
 
 This reference guide covers the complete eIPC system: the wire protocol, Go server and client implementations, security model (HMAC [@rfc2104]-SHA256 authentication, capability-based authorization, replay protection), the service architecture (broker, registry, policy engine, audit, health), transport layer (TCP, Unix [@stevens2003] sockets, shared memory), and the C SDK for embedded clients.
