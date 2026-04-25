@@ -186,6 +186,9 @@ func main() {
 
 ### 2.1 System Architecture
 
+![Figure: eIPC Message Router Architecture — publishers, subscribers, and multi-transport routing](images/message-routing.png)
+
+
 ```
 +----------------------------------------------+
 |                 Application                   |
