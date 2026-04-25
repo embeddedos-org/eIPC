@@ -16,3 +16,5 @@ vendor/
 # OS files
 .DS_Store
 Thumbs.db
+# Auto-generated
+*.pyc
