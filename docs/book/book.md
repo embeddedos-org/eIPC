@@ -1,3 +1,14 @@
+---
+title: "eIPC — Official Reference Guide"
+author: "Srikanth Patchava & EmbeddedOS Contributors"
+date: "April 2026"
+version: "v1.0.0"
+bibliography: references.bib
+csl: ieee.csl
+titlepage: true
+titlepage-background: "cover.png"
+---
+
 # eIPC: The Definitive Reference Guide
 
 ## Embedded Inter-Process Communication Framework
@@ -21,7 +32,7 @@
 
 eIPC (Embedded Inter-Process Communication) is a standalone, cross-platform, security-enhanced IPC framework designed for communication between components in the EmbeddedOS ecosystem — particularly between the ENI (Neural Interface) and EAI (AI Layer) subsystems. Built entirely in Go with zero external dependencies, eIPC provides a production-grade message passing system with built-in authentication, authorization, integrity verification, and audit logging.
 
-This reference guide covers the complete eIPC system: the wire protocol, Go server and client implementations, security model (HMAC-SHA256 authentication, capability-based authorization, replay protection), the service architecture (broker, registry, policy engine, audit, health), transport layer (TCP, Unix sockets, shared memory), and the C SDK for embedded clients.
+This reference guide covers the complete eIPC system: the wire protocol, Go server and client implementations, security model (HMAC [@rfc2104]-SHA256 authentication, capability-based authorization, replay protection), the service architecture (broker, registry, policy engine, audit, health), transport layer (TCP, Unix [@stevens2003] sockets, shared memory), and the C SDK for embedded clients.
 
 ### Who This Book Is For
 
@@ -70,7 +81,7 @@ This reference guide covers the complete eIPC system: the wire protocol, Go serv
   - [Chapter 17: Replay Protection](#chapter-17-replay-protection)
   - [Chapter 18: Key Management](#chapter-18-key-management)
 - [Part VI: Services](#part-vi-services)
-  - [Chapter 19: Broker and Pub/Sub](#chapter-19-broker-and-pubsub)
+  - [Chapter 19: Broker and Pub/Sub [@hohpe2003]](#chapter-19-broker-and-pubsub)
   - [Chapter 20: Service Registry](#chapter-20-service-registry)
   - [Chapter 21: Policy Engine](#chapter-21-policy-engine)
   - [Chapter 22: Audit Logging](#chapter-22-audit-logging)
@@ -1319,8 +1330,8 @@ The server logs all significant events to stderr:
 | Framework | Throughput (1KB) | Latency (p99) | Dependencies |
 |---|---|---|---|
 | **eIPC** | 70K msg/s | 250 us | 0 (pure Go stdlib) |
-| gRPC | 85K msg/s | 200 us | protobuf, HTTP/2 |
-| ZeroMQ | 150K msg/s | 80 us | libzmq |
+| gRPC [@grpc [@birrell1984]_docs] | 85K msg/s | 200 us | protobuf, HTTP/2 |
+| ZeroMQ [@hintjens2013] | 150K msg/s | 80 us | libzmq |
 | MQTT | 25K msg/s | 2 ms | broker required |
 
 ---
@@ -1351,3 +1362,8 @@ eIPC aligns with: ISO/IEC/IEEE 15288:2023, ISO/IEC 12207, ISO/IEC/IEEE 42010, IS
 
 ---
 Part of the [EmbeddedOS Organization](https://embeddedos-org.github.io).
+
+## References
+
+::: {#refs}
+:::
