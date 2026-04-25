@@ -4,6 +4,7 @@
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)](https://github.com/embeddedos-org/eipc)
+[![Book](https://github.com/embeddedos-org/eIPC/actions/workflows/book-build.yml/badge.svg)](https://github.com/embeddedos-org/eIPC/actions/workflows/book-build.yml)
 
 **Secure, real-time IPC framework for communication between ENI (Neural Interface) and EAI (AI Layer)**
 
