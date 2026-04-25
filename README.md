@@ -540,3 +540,7 @@ This project is part of the EoS ecosystem and aligns with international standard
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
+
+---
+Part of the [EmbeddedOS Organization](https://embeddedos-org.github.io).

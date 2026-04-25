@@ -4,14 +4,22 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/embeddedos-org/eipc/config"
@@ -25,6 +33,54 @@ import (
 	"github.com/embeddedos-org/eipc/transport"
 	"github.com/embeddedos-org/eipc/transport/tcp"
 )
+
+const (
+	defaultRequestTimeout = 30 * time.Second
+	eaiBackendURL         = "http://127.0.0.1:8090"
+)
+
+// chatHTTPRequest is the JSON body for the /v1/chat endpoint.
+type chatHTTPRequest struct {
+	Prompt string `json:"prompt"`
+	Model  string `json:"model,omitempty"`
+	Stream bool   `json:"stream,omitempty"`
+}
+
+// completeHTTPRequest is the JSON body for the /v1/complete endpoint.
+type completeHTTPRequest struct {
+	Prompt    string `json:"prompt"`
+	Model     string `json:"model,omitempty"`
+	Stream    bool   `json:"stream,omitempty"`
+	MaxTokens int    `json:"max_tokens,omitempty"`
+}
+
+// forwardToEAI sends a request to the local EAI backend and returns the response body reader.
+// The caller is responsible for closing the returned body.
+func forwardToEAI(ctx context.Context, endpoint string, payload interface{}) (io.ReadCloser, string, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, eaiBackendURL+endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("backend request: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, "", fmt.Errorf("backend returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	return resp.Body, resp.Header.Get("Content-Type"), nil
+}
 
 func main() {
 	addr := config.LoadListenAddr()
@@ -196,12 +252,90 @@ func main() {
 			log.Printf("[AUDIT] failed: %v", err)
 		}
 
-		// TODO: Forward to EAI agent loop. For now, echo acknowledgment.
+		// Forward to EAI backend with timeout
+		ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+		defer cancel()
+
+		reqBody := chatHTTPRequest{
+			Prompt: chatReq.UserPrompt,
+			Model:  chatReq.Model,
+			Stream: chatReq.Stream,
+		}
+
+		body, contentType, err := forwardToEAI(ctx, "/v1/chat", reqBody)
+		if err != nil {
+			log.Printf("[CHAT] backend error: %v", err)
+			// Fallback to echo response on backend failure
+			chatResp := core.ChatResponseEvent{
+				SessionID:  chatReq.SessionID,
+				Response:   fmt.Sprintf("[EIPC] Chat received (backend unavailable): %s", chatReq.UserPrompt),
+				Model:      chatReq.Model,
+				TokensUsed: 0,
+			}
+			respPayload, err := codec.Marshal(chatResp)
+			if err != nil {
+				return nil, fmt.Errorf("marshal chat response: %w", err)
+			}
+			return &core.Message{
+				Version:   core.ProtocolVersion,
+				Type:      core.TypeChat,
+				Source:    "eipc-server",
+				Timestamp: time.Now().UTC(),
+				SessionID: msg.SessionID,
+				RequestID: msg.RequestID,
+				Priority:  core.PriorityP1,
+				Payload:   respPayload,
+			}, nil
+		}
+		defer body.Close()
+
+		// If streaming SSE response, collect all chunks
+		var responseText strings.Builder
+		tokensUsed := 0
+
+		if strings.Contains(contentType, "text/event-stream") {
+			scanner := bufio.NewScanner(body)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if !strings.HasPrefix(line, "data: ") {
+					continue
+				}
+				data := strings.TrimPrefix(line, "data: ")
+				if data == "[DONE]" {
+					break
+				}
+				var chunk struct {
+					Content string `json:"content"`
+					Tokens  int    `json:"tokens,omitempty"`
+				}
+				if err := json.Unmarshal([]byte(data), &chunk); err == nil {
+					responseText.WriteString(chunk.Content)
+					tokensUsed += chunk.Tokens
+				}
+			}
+		} else {
+			// Non-streaming: read full response
+			respBytes, err := io.ReadAll(body)
+			if err != nil {
+				return nil, fmt.Errorf("read backend response: %w", err)
+			}
+			var result struct {
+				Response string `json:"response"`
+				Tokens   int    `json:"tokens_used,omitempty"`
+			}
+			if err := json.Unmarshal(respBytes, &result); err == nil {
+				responseText.WriteString(result.Response)
+				tokensUsed = result.Tokens
+			} else {
+				responseText.Write(respBytes)
+			}
+		}
+
 		chatResp := core.ChatResponseEvent{
 			SessionID:  chatReq.SessionID,
-			Response:   fmt.Sprintf("[EIPC] Chat received: %s", chatReq.UserPrompt),
+			Response:   responseText.String(),
 			Model:      chatReq.Model,
-			TokensUsed: 0,
+			TokensUsed: tokensUsed,
 		}
 		respPayload, err := codec.Marshal(chatResp)
 		if err != nil {
@@ -256,11 +390,89 @@ func main() {
 			log.Printf("[AUDIT] failed: %v", err)
 		}
 
+		// Forward to EAI backend with timeout
+		ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+		defer cancel()
+
+		reqBody := completeHTTPRequest{
+			Prompt:    completeReq.Prompt,
+			Model:     completeReq.Model,
+			Stream:    completeReq.Stream,
+			MaxTokens: completeReq.MaxTokens,
+		}
+
+		body, contentType, err := forwardToEAI(ctx, "/v1/complete", reqBody)
+		if err != nil {
+			log.Printf("[COMPLETE] backend error: %v", err)
+			// Fallback response
+			completeResp := core.CompleteResponseEvent{
+				SessionID:  completeReq.SessionID,
+				Completion: fmt.Sprintf("[EIPC] Completion received (backend unavailable): %s", completeReq.Prompt),
+				Model:      completeReq.Model,
+				TokensUsed: 0,
+			}
+			respPayload, err := codec.Marshal(completeResp)
+			if err != nil {
+				return nil, fmt.Errorf("marshal complete response: %w", err)
+			}
+			return &core.Message{
+				Version:   core.ProtocolVersion,
+				Type:      core.TypeComplete,
+				Source:    "eipc-server",
+				Timestamp: time.Now().UTC(),
+				SessionID: msg.SessionID,
+				RequestID: msg.RequestID,
+				Priority:  core.PriorityP1,
+				Payload:   respPayload,
+			}, nil
+		}
+		defer body.Close()
+
+		var completionText strings.Builder
+		tokensUsed := 0
+
+		if strings.Contains(contentType, "text/event-stream") {
+			scanner := bufio.NewScanner(body)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if !strings.HasPrefix(line, "data: ") {
+					continue
+				}
+				data := strings.TrimPrefix(line, "data: ")
+				if data == "[DONE]" {
+					break
+				}
+				var chunk struct {
+					Content string `json:"content"`
+					Tokens  int    `json:"tokens,omitempty"`
+				}
+				if err := json.Unmarshal([]byte(data), &chunk); err == nil {
+					completionText.WriteString(chunk.Content)
+					tokensUsed += chunk.Tokens
+				}
+			}
+		} else {
+			respBytes, err := io.ReadAll(body)
+			if err != nil {
+				return nil, fmt.Errorf("read backend response: %w", err)
+			}
+			var result struct {
+				Completion string `json:"completion"`
+				Tokens     int    `json:"tokens_used,omitempty"`
+			}
+			if err := json.Unmarshal(respBytes, &result); err == nil {
+				completionText.WriteString(result.Completion)
+				tokensUsed = result.Tokens
+			} else {
+				completionText.Write(respBytes)
+			}
+		}
+
 		completeResp := core.CompleteResponseEvent{
 			SessionID:  completeReq.SessionID,
-			Completion: fmt.Sprintf("[EIPC] Completion received: %s", completeReq.Prompt),
+			Completion: completionText.String(),
 			Model:      completeReq.Model,
-			TokensUsed: 0,
+			TokensUsed: tokensUsed,
 		}
 		respPayload, err := codec.Marshal(completeResp)
 		if err != nil {
@@ -310,12 +522,15 @@ func main() {
 		}
 	}()
 
+	// Graceful shutdown
+	shutdownCh := make(chan os.Signal, 1)
+	signal.Notify(shutdownCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt)
-		<-sigCh
-		log.Println("Shutting down...")
+		sig := <-shutdownCh
+		log.Printf("Received signal %v, shutting down gracefully...", sig)
 		tcpTransport.Close()
+		auditLogger.Close()
+		log.Println("Shutdown complete")
 		os.Exit(0)
 	}()
 
@@ -324,6 +539,9 @@ func main() {
 	for {
 		conn, err := tcpTransport.Accept()
 		if err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				continue
+			}
 			log.Printf("accept error: %v", err)
 			return
 		}
@@ -671,3 +889,8 @@ func handleConnection(
 }
 
 // computeChallengeResponse computes HMAC-SHA256(secret, nonce) for client-side auth.
+func computeChallengeResponse(secret, nonce []byte) []byte {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write(nonce)
+	return mac.Sum(nil)
+}
