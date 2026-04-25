@@ -440,6 +440,9 @@ var (
 
 ### 7.1 Frame Layout
 
+![Figure: eIPC Wire Protocol Frame Format — header fields, payload, and HMAC integrity](images/wire-protocol.png)
+
+
 ```
 [magic:4][version:2][msg_type:1][flags:1][header_len:4][payload_len:4][header][payload][mac:32?]
 ```
@@ -540,6 +543,9 @@ func DefaultCodec() Codec  // Returns JSONCodec
 ## Chapter 10: Transport Abstraction
 
 ### 10.1 Transport Interface
+
+![Figure: eIPC Transport Layer Comparison — TCP, UDP, Unix Socket, Shared Memory, Serial](images/transport-comparison.png)
+
 
 ```go
 type Transport interface {
