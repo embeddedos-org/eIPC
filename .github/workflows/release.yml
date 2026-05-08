@@ -8,6 +8,11 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -42,6 +47,8 @@ jobs:
             goarch: arm64
           - goos: windows
             goarch: amd64
+          - goos: windows
+            goarch: arm64
           - goos: freebsd
             goarch: amd64
     steps:
@@ -58,92 +65,176 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
         run: |
+          set -e
           EXT=""
           if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
           mkdir -p dist
+          built=0
           for cmd in cmd/eipc-server cmd/eipc-client cmd/eipc-cli; do
-            NAME=$(basename $cmd)
-            go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" \
-              -o dist/${NAME}${EXT} ./${cmd} 2>/dev/null || true
+            if [ -d "$cmd" ]; then
+              NAME=$(basename "$cmd")
+              go build -trimpath -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" \
+                -o "dist/${NAME}${EXT}" "./${cmd}"
+              built=$((built+1))
+            fi
           done
-          tar czf eipc-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist .
+          if [ "$built" = "0" ]; then
+            echo "::warning::No matching cmd/ directories found, building root package"
+            go build -trimpath -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" \
+              -o "dist/eipc${EXT}" ./...
+          fi
+          BASE="eipc-${{ steps.version.outputs.version }}-${GOOS}-${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            (cd dist && zip -r "../${BASE}.zip" .)
+          fi
+          tar czf "${BASE}.tar.gz" -C dist .
       - uses: actions/upload-artifact@v4
         with:
           name: eipc-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: "*.tar.gz"
+          path: |
+            *.tar.gz
+            *.zip
+
+  package-debrpm:
+    name: deb / rpm
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install fpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev rubygems build-essential
+          sudo gem install --no-document fpm
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: eipc-linux-*
+          merge-multiple: true
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - name: Build deb / rpm packages
+        run: |
+          set -e
+          for arch_pair in amd64:amd64 arm64:arm64 arm:armhf riscv64:riscv64; do
+            GOARCH="${arch_pair%:*}"
+            DEBARCH="${arch_pair#*:}"
+            tarball="eipc-${{ steps.version.outputs.version }}-linux-${GOARCH}.tar.gz"
+            [ -f "$tarball" ] || continue
+            rm -rf pkgroot && mkdir -p pkgroot/usr/local/bin
+            tar xzf "$tarball" -C pkgroot/usr/local/bin
+            for fmt in deb rpm; do
+              fpm -s dir -t "$fmt" \
+                -n eipc -v "${{ steps.version.outputs.version }}" \
+                -a "$DEBARCH" --license MIT --vendor embeddedos-org \
+                --description "eIPC — Embedded IPC framework" \
+                -C pkgroot . || true
+            done
+          done
+          ls -lh *.deb *.rpm 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eipc-linux-packages
+          path: |
+            *.deb
+            *.rpm
 
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [test, build]
+    needs: [test, build, package-debrpm]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
       - name: Extract version
         id: version
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: eipc-*
           merge-multiple: true
       - name: Generate checksums
-        run: sha256sum *.tar.gz > SHA256SUMS.txt
-      - name: Generate SBOM (CycloneDX v1.5)
+        run: sha256sum *.tar.gz *.zip *.deb *.rpm 2>/dev/null > SHA256SUMS.txt || sha256sum *.tar.gz > SHA256SUMS.txt
+      - name: Generate CycloneDX SBOM (cyclonedx-gomod)
         run: |
-          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "00000000-0000-0000-0000-$(date +%s)")
-          cat > sbom.cdx.json << EOF
-          {
-            "bomFormat": "CycloneDX",
-            "specVersion": "1.5",
-            "serialNumber": "urn:uuid:${UUID}",
-            "version": 1,
-            "metadata": {
-              "timestamp": "${TIMESTAMP}",
-              "component": {
-                "type": "library",
-                "name": "eIPC",
-                "version": "${{ steps.version.outputs.tag }}",
-                "supplier": { "name": "embeddedos-org" },
-                "licenses": [{ "license": { "id": "MIT" } }]
-              }
-            },
-            "components": []
-          }
-          EOF
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
+          $(go env GOPATH)/bin/cyclonedx-gomod mod -licenses -json -output sbom.cdx.json
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+          artifact-name: sbom.spdx.json
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
-      - name: Sign artifacts
+      - name: Sign artifacts (cosign keyless)
         run: |
-          for f in *.tar.gz; do
-            cosign sign-blob --yes --bundle "${f}.sig.bundle" "$f" 2>/dev/null || true
+          set -e
+          for f in *.tar.gz *.zip *.deb *.rpm; do
+            [ -f "$f" ] || continue
+            cosign sign-blob --yes --bundle "${f}.sig.bundle" "$f"
           done
-      - name: Check release does not already exist
+      - name: Optional Linux GPG signing
+        if: env.GPG_KEY != ''
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          if gh release view "${{ steps.version.outputs.tag }}" &>/dev/null; then
-            echo "::error::Release already exists."
-            exit 1
-          fi
+          echo "$GPG_KEY" | gpg --batch --import
+          for f in *.tar.gz *.zip *.deb *.rpm; do
+            [ -f "$f" ] || continue
+            echo "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+              --passphrase-fd 0 --detach-sign --armor "$f"
+          done
+      - name: Idempotent release create-or-update
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create GitHub Release
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — will update artifacts."
+          else
+            gh release create "$TAG" --title "eIPC $TAG" --generate-notes \
+              $([ "${{ contains(steps.version.outputs.tag, 'rc') || contains(steps.version.outputs.tag, 'beta') }}" = "true" ] && echo "--prerelease")
+          fi
+      - name: Attach all artifacts to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: "eIPC ${{ steps.version.outputs.tag }}"
           generate_release_notes: true
+          fail_on_unmatched_files: false
           body: |
-            ### Release Integrity
-            - `SHA256SUMS.txt` — checksums
-            - `sbom.cdx.json` — CycloneDX SBOM (v1.5)
-            - `*.sig.bundle` — Sigstore cosign signatures
+            ## eIPC ${{ steps.version.outputs.tag }}
+
+            Cross-compiled binaries for Linux (amd64, arm64, arm, riscv64),
+            macOS (amd64, arm64), Windows (amd64, arm64), and FreeBSD (amd64).
+            deb / rpm packages for the Linux targets.
+
+            ### Integrity & supply-chain
+            - `SHA256SUMS.txt` — file checksums
+            - `sbom.cdx.json` — CycloneDX SBOM (cyclonedx-gomod)
+            - `sbom.spdx.json` — SPDX SBOM
+            - `*.sig.bundle` — Sigstore cosign keyless signatures
+            - `*.asc` — GPG detached signatures (when GPG_KEY secret is set)
           files: |
             *.tar.gz
+            *.zip
+            *.deb
+            *.rpm
             *.sig.bundle
+            *.asc
             SHA256SUMS.txt
             sbom.cdx.json
+            sbom.spdx.json
           prerelease: ${{ contains(steps.version.outputs.tag, 'rc') || contains(steps.version.outputs.tag, 'beta') }}
