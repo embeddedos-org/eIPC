@@ -18,3 +18,11 @@ vendor/
 Thumbs.db
 # Auto-generated
 *.pyc
+build/
+build-*/
+dist/
+node_modules/
+__pycache__/
+.venv/
+target/
+.pytest_cache/
