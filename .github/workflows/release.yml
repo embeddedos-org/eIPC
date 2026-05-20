@@ -208,7 +208,7 @@ jobs:
               $([ "${{ contains(steps.version.outputs.tag, 'rc') || contains(steps.version.outputs.tag, 'beta') }}" = "true" ] && echo "--prerelease")
           fi
       - name: Attach all artifacts to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: "eIPC ${{ steps.version.outputs.tag }}"
