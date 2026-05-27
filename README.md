@@ -23,7 +23,7 @@ We continuously benchmark eIPC — Secure IPC against the entire EmbeddedOS ecos
 
 ---
 
-## 🎬 Product Marketing Video
+## 🎬 Product Marketing Video (App Store Proof of Production)
 
 Experience eIPC — Secure IPC in action! Watch our high-fidelity product demonstration and marketing video:
 
