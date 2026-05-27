@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 EoS Project
 import unittest
-class TestEipcFunctional(unittest.TestCase):
-    def test_message_queue_dispatch(self):
-        print("Testing inter-process message queue send/receive...")
+
+class TesteIPCFunctional(unittest.TestCase):
+    def test_ipc_message_queue_pipeline(self):
         queue = []
-        queue.append({"id": 1, "payload": "ping"})
+        # Send
+        queue.append({"id": 1, "payload": "sensor_data"})
+        # Receive
         msg = queue.pop(0)
-        self.assertEqual(msg["payload"], "ping")
+        assert msg["payload"] == "sensor_data"
