@@ -1,59 +1,97 @@
-# eIPC — Secure IPC
+# eIPC — Secure Inter-Process Communication
 
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)](https://github.com/embeddedos-org/eIPC)
-[![Build Status](https://img.shields.io/badge/Build-Passing-success?style=for-the-badge)](https://github.com/embeddedos-org/eIPC/actions)
-[![Test Coverage](https://img.shields.io/badge/Coverage-100%25-success?style=for-the-badge)](https://github.com/embeddedos-org/eIPC)
-[![GPS API](https://img.shields.io/badge/GPS%20API-Integrated-blue?style=for-the-badge)](https://github.com/embeddedos-org/eIPC)
+[![CI](https://github.com/embeddedos-org/eIPC/actions/workflows/ci.yml/badge.svg)](https://github.com/embeddedos-org/eIPC/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/embeddedos-org/eIPC/actions/workflows/codeql.yml/badge.svg)](https://github.com/embeddedos-org/eIPC/actions/workflows/codeql.yml)
+[![Scorecard](https://github.com/embeddedos-org/eIPC/actions/workflows/scorecard.yml/badge.svg)](https://github.com/embeddedos-org/eIPC/actions/workflows/scorecard.yml)
+[![Release](https://github.com/embeddedos-org/eIPC/actions/workflows/release.yml/badge.svg)](https://github.com/embeddedos-org/eIPC/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Ultra-Low Latency Inter-Process Communication. Engineered to meet the highest standards of production readiness, performance, and security.
+eIPC is a transport-agnostic inter-process communication library written in Go
+(module `github.com/embeddedos-org/eipc`). It exchanges messages as framed
+envelopes over pluggable transports and signs every frame for integrity. It is
+part of the [EmbeddedOS (EoS)](https://github.com/embeddedos-org) ecosystem,
+where it provides the messaging layer between services.
 
----
+## Features
 
-## 🚀 World-Class Simulation & Analytics
+Observed in the source tree:
 
-### Real-Time Emulation Dashboard
-Below is the real-time simulation dashboard generated from our production test suite. It displays comprehensive latency profiles, coverage heatmaps, and scheduling performance.
+- **Pluggable transports** — TCP, Unix domain sockets, shared memory, and
+  Windows named pipes (`transport/`).
+- **Framed binary protocol** — length-prefixed frames with a header/payload
+  codec (`protocol/`).
+- **Frame integrity** — HMAC-SHA256 signing of frames (`security/integrity`)
+  and sequence-based replay protection (`security/replay`).
+- **Security building blocks** — auth, capability tokens, encryption, and a
+  keyring (`security/`), plus optional TLS on the TCP transport
+  (`EIPC_TLS_AUTO_CERT`).
+- **Services** — broker, registry, health, policy, and audit (`services/`).
+- **C SDK** — a C binding under `sdk/c`.
 
-![Emulation Dashboard](docs/screenshots/eipc_simulation.png)
+## What's inside
 
-### Unified Organization Health Matrix
-We continuously benchmark eIPC — Secure IPC against the entire EmbeddedOS ecosystem to ensure flawless interoperability.
+| Path | Contents |
+|------|----------|
+| `core/` | `Endpoint` API, message envelope, router, lifecycle |
+| `protocol/` | Frame/header definitions and codec |
+| `transport/` | `tcp`, `unix`, `shm`, `windows` transports |
+| `security/` | `auth`, `capability`, `encryption`, `integrity`, `keyring`, `replay` |
+| `services/` | `broker`, `registry`, `health`, `policy`, `audit` |
+| `config/` | Runtime configuration (e.g. listen address, TLS) |
+| `cmd/` | `eipc-server`, `eipc-client`, `eipc-cli` binaries |
+| `sdk/c/` | C SDK |
+| `examples/` | `hello-eipc` minimal client/server |
+| `tests/` | unit, functional, integration, performance, simulation |
+| `docs/` | Architecture, API reference, security model |
 
-![Overall Dashboard](docs/screenshots/overall_dashboard.png)
+## Requirements
 
----
+- Go 1.22+
 
-## 🎬 Product Marketing Video (App Store Proof of Production)
+## Build
 
-Experience eIPC — Secure IPC in action! Watch our high-fidelity product demonstration and marketing video:
-
-> 🎥 **[Watch the eIPC — Secure IPC Product Video](docs/videos/eipc_marketing.mp4)**
-
----
-
-## 🛠️ Production-Grade Architecture
-
-- **Domain**: Go • Shared Memory • DMA
-- **GPS Integration**: Production-grade geolocation and time synchronization APIs integrated.
-- **Benchmarks**: Outperforms leading industry standards including **gRPC, D-Bus, Unix Domain Sockets**.
-
----
-
-## 🧪 Comprehensive Test Suite
-
-This repository features **100% test coverage** across four critical categories:
-1. **Unit Tests**: Full functional coverage of core components.
-2. **Functional E2E Tests**: End-to-end integration and boundary input robustness.
-3. **Performance Benchmarks**: Nanosecond-precision latency profiling.
-4. **Hardware Simulation**: High-fidelity peripheral and register emulation.
-
-To run the entire suite locally:
 ```bash
-python run_all_tests.py
+make build          # builds bin/eipc-server and bin/eipc-client
+make build-cli      # builds bin/eipc-cli
+make build-all      # cross-compiles for linux/darwin/windows (amd64/arm64/armv7)
 ```
 
----
+## Run the example
 
-## 📜 License & Compliance
+From two terminals (see `examples/hello-eipc/README.md`):
 
-Licensed under the MIT License. Aligned with ISO/IEC 25000 software quality standards.
+```bash
+# Terminal 1 — server
+cd examples/hello-eipc && go run ./server/
+
+# Terminal 2 — client
+cd examples/hello-eipc && go run ./client/
+```
+
+The `eipc-cli` debugging tool can send, listen for, and ping messages against a
+running server:
+
+```bash
+eipc-cli send   --addr 127.0.0.1:9090 --type chat --payload '{"text":"hello"}'
+eipc-cli listen --addr 127.0.0.1:9090
+eipc-cli ping   --addr 127.0.0.1:9090
+```
+
+## Test
+
+```bash
+make test           # go test -race ./...
+make bench          # go test -bench=. -benchmem ./core/ ./protocol/
+make vet            # go vet ./...
+```
+
+## Documentation
+
+Docs live under `docs/` and are published with MkDocs (`mkdocs.yml`):
+<https://embeddedos-org.github.io/eIPC/>.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Part of [embeddedos-org](https://github.com/embeddedos-org).
