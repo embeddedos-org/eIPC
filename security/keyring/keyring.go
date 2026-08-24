@@ -100,7 +100,11 @@ func (kr *Keyring) Delete(id string) {
 }
 
 func (kr *Keyring) Rotate(id string, keyLen int, ttl time.Duration) (*KeyEntry, error) {
-	oldID := id + ".prev." + hex.EncodeToString(randomBytes(4))
+	suffix, err := randomBytes(4)
+	if err != nil {
+		return nil, fmt.Errorf("rotate %q: %w", id, err)
+	}
+	oldID := id + ".prev." + hex.EncodeToString(suffix)
 	kr.mu.Lock()
 	if old, ok := kr.keys[id]; ok {
 		old.Revoked = true
@@ -157,8 +161,16 @@ func (kr *Keyring) Cleanup() int {
 	return removed
 }
 
-func randomBytes(n int) []byte {
+// randomBytes returns n cryptographically random bytes.
+//
+// The error is returned rather than discarded: the previous form assigned
+// rand.Read's two results to one variable, which did not compile, and
+// discarding the error would have let a CSPRNG failure yield an all-zero
+// buffer with no indication.
+func randomBytes(n int) ([]byte, error) {
 	b := make([]byte, n)
-	_ = rand.Read(b)
-	return b
+	if _, err := rand.Read(b); err != nil {
+		return nil, fmt.Errorf("read %d random bytes: %w", n, err)
+	}
+	return b, nil
 }

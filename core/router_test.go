@@ -93,8 +93,8 @@ func TestRouterMultipleHandlers(t *testing.T) {
 		return nil, nil
 	})
 
-	_ = r.Dispatch(NewMessage(TypeIntent, "test", nil))
-	_ = r.Dispatch(NewMessage(TypeAck, "test", nil))
+	_, _ = r.Dispatch(NewMessage(TypeIntent, "test", nil))
+	_, _ = r.Dispatch(NewMessage(TypeAck, "test", nil))
 
 	if !intentCalled {
 		t.Error("intent handler not called")

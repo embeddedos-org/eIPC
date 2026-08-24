@@ -26,7 +26,9 @@ func TestStress_LargePayload(t *testing.T) {
 	addr := transport.Addr()
 
 	payload := make([]byte, 512*1024) // 512KB
-	_ = rand.Read(payload)
+	if _, err := rand.Read(payload); err != nil {
+		t.Fatalf("fill payload with random bytes: %v", err)
+	}
 
 	done := make(chan struct{})
 	go func() {

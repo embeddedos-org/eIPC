@@ -69,8 +69,10 @@ static void test_header_json_roundtrip(void) {
     strncpy(hdr.capability, "tool_exec", EIPC_CAPABILITY_MAX - 1);
 
     char json[EIPC_MAX_HEADER];
-    eipc_status_t rc = eipc_header_to_json(&hdr, json, sizeof(json));
+    size_t written = 0;
+    eipc_status_t rc = eipc_header_to_json(&hdr, json, sizeof(json), &written);
     assert(rc == EIPC_OK);
+    assert(written == strlen(json));
     assert(strstr(json, "eai-agent") != NULL);
     assert(strstr(json, "sess-001") != NULL);
 
@@ -91,7 +93,8 @@ static void test_intent_json_roundtrip(void) {
     strncpy(ev.session_id, "sess-002", EIPC_SESSION_ID_MAX - 1);
 
     char json[1024];
-    eipc_status_t rc = eipc_intent_to_json(&ev, json, sizeof(json));
+    size_t written = 0;
+    eipc_status_t rc = eipc_intent_to_json(&ev, json, sizeof(json), &written);
     assert(rc == EIPC_OK);
     assert(strstr(json, "move_cursor") != NULL);
 
@@ -111,7 +114,8 @@ static void test_ack_json_roundtrip(void) {
     strncpy(ack.status, "success", 31);
 
     char json[512];
-    eipc_status_t rc = eipc_ack_to_json(&ack, json, sizeof(json));
+    size_t written = 0;
+    eipc_status_t rc = eipc_ack_to_json(&ack, json, sizeof(json), &written);
     assert(rc == EIPC_OK);
 
     eipc_ack_event_t parsed;

@@ -17,7 +17,10 @@ static int test_chat_request_json_roundtrip(void) {
     req.max_tokens = 512;
 
     char json[4096];
-    ASSERT(eipc_chat_request_to_json(&req, json, sizeof(json)) == EIPC_OK, "serialize");
+    size_t written = 0;
+    ASSERT(eipc_chat_request_to_json(&req, json, sizeof(json), &written) == EIPC_OK,
+           "serialize");
+    ASSERT(written == strlen(json), "written matches the serialized length");
 
     eipc_chat_request_t parsed;
     ASSERT(eipc_chat_request_from_json(json, strlen(json), &parsed) == EIPC_OK, "deserialize");
@@ -38,7 +41,10 @@ static int test_chat_response_json_roundtrip(void) {
     resp.tokens_used = 42;
 
     char json[4096];
-    ASSERT(eipc_chat_response_to_json(&resp, json, sizeof(json)) == EIPC_OK, "serialize");
+    size_t written = 0;
+    ASSERT(eipc_chat_response_to_json(&resp, json, sizeof(json), &written) == EIPC_OK,
+           "serialize");
+    ASSERT(written == strlen(json), "written matches the serialized length");
 
     eipc_chat_response_t parsed;
     ASSERT(eipc_chat_response_from_json(json, strlen(json), &parsed) == EIPC_OK, "deserialize");
@@ -52,9 +58,30 @@ static int test_chat_response_json_roundtrip(void) {
 
 static int test_chat_null_args(void) {
     char buf[256];
-    ASSERT(eipc_chat_request_to_json(NULL, buf, sizeof(buf)) == EIPC_ERR_INVALID, "null req");
-    ASSERT(eipc_chat_response_to_json(NULL, buf, sizeof(buf)) == EIPC_ERR_INVALID, "null resp");
+    size_t written = 0;
+    eipc_chat_request_t req;
+    eipc_chat_response_t resp;
+
+    memset(&req, 0, sizeof(req));
+    memset(&resp, 0, sizeof(resp));
+
+    ASSERT(eipc_chat_request_to_json(NULL, buf, sizeof(buf), &written) == EIPC_ERR_INVALID,
+           "null req");
+    ASSERT(eipc_chat_response_to_json(NULL, buf, sizeof(buf), &written) == EIPC_ERR_INVALID,
+           "null resp");
     ASSERT(eipc_chat_request_from_json(NULL, 0, NULL) == EIPC_ERR_INVALID, "null json");
+
+    /* The out-parameter is mandatory: the implementation dereferences it. */
+    ASSERT(eipc_chat_request_to_json(&req, buf, sizeof(buf), NULL) == EIPC_ERR_INVALID,
+           "null written rejected for request");
+    ASSERT(eipc_chat_response_to_json(&resp, buf, sizeof(buf), NULL) == EIPC_ERR_INVALID,
+           "null written rejected for response");
+    ASSERT(eipc_chat_request_to_json(&req, NULL, sizeof(buf), &written) == EIPC_ERR_INVALID,
+           "null buffer rejected");
+
+    /* A buffer too small must be reported, not truncated silently. */
+    ASSERT(eipc_chat_request_to_json(&req, buf, 4, &written) == EIPC_ERR_FRAME_TOO_LARGE,
+           "undersized buffer reported");
     return 0;
 }
 

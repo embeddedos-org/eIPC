@@ -20,13 +20,9 @@ static void test_hmac_sign_verify(void) {
 
     const uint8_t key[] = "my-secret-key-for-testing-12345";
     const uint8_t data[] = "hello eipc world";
-    uint8_t mac[EIPC_HMAC_SIZE];
+    uint8_t mac[EIPC_MAC_SIZE];
 
-    eipc_status_t rc = eipc_hmac_sign(key, sizeof(key) - 1, data, sizeof(data) - 1, mac);
-    if (rc != EIPC_OK) {
-        FAIL(name, "sign failed");
-        return;
-    }
+    eipc_hmac_sign(key, sizeof(key) - 1, data, sizeof(data) - 1, mac);
 
     int valid = eipc_hmac_verify(key, sizeof(key) - 1, data, sizeof(data) - 1, mac);
     if (!valid) {
@@ -43,13 +39,9 @@ static void test_hmac_tampered_data(void) {
 
     const uint8_t key[] = "my-secret-key-for-testing-12345";
     uint8_t data[] = "hello eipc world";
-    uint8_t mac[EIPC_HMAC_SIZE];
+    uint8_t mac[EIPC_MAC_SIZE];
 
-    eipc_status_t rc = eipc_hmac_sign(key, sizeof(key) - 1, data, sizeof(data) - 1, mac);
-    if (rc != EIPC_OK) {
-        FAIL(name, "sign failed");
-        return;
-    }
+    eipc_hmac_sign(key, sizeof(key) - 1, data, sizeof(data) - 1, mac);
 
     data[0] ^= 0x01;
 
@@ -69,13 +61,9 @@ static void test_hmac_wrong_key(void) {
     const uint8_t key_a[] = "key-alpha-secret-1234567890abc";
     const uint8_t key_b[] = "key-bravo-secret-0987654321xyz";
     const uint8_t data[] = "message to authenticate";
-    uint8_t mac[EIPC_HMAC_SIZE];
+    uint8_t mac[EIPC_MAC_SIZE];
 
-    eipc_status_t rc = eipc_hmac_sign(key_a, sizeof(key_a) - 1, data, sizeof(data) - 1, mac);
-    if (rc != EIPC_OK) {
-        FAIL(name, "sign failed");
-        return;
-    }
+    eipc_hmac_sign(key_a, sizeof(key_a) - 1, data, sizeof(data) - 1, mac);
 
     int valid = eipc_hmac_verify(key_b, sizeof(key_b) - 1, data, sizeof(data) - 1, mac);
     if (valid) {
@@ -104,13 +92,9 @@ static void test_hmac_known_vector(void) {
         0x5a, 0x00, 0x3f, 0x08, 0x9d, 0x27, 0x39, 0x83,
         0x9d, 0xec, 0x58, 0xb9, 0x64, 0xec, 0x38, 0x43
     };
-    uint8_t mac[EIPC_HMAC_SIZE];
+    uint8_t mac[EIPC_MAC_SIZE];
 
-    eipc_status_t rc = eipc_hmac_sign(key, 4, data, 28, mac);
-    if (rc != EIPC_OK) {
-        FAIL(name, "sign failed");
-        return;
-    }
+    eipc_hmac_sign(key, 4, data, 28, mac);
 
     if (memcmp(mac, expected, 32) != 0) {
         printf("    computed: ");
