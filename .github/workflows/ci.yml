@@ -2,10 +2,10 @@ name: CI — eIPC
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
     tags: ["v*"]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 env:
   BUILD_TYPE: Release
