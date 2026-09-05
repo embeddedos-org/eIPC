@@ -68,7 +68,7 @@ eipc_status_t eipc_server_receive(eipc_conn_t *conn, eipc_message_t *msg) {
 
     /* Verify HMAC if present */
     if (frame.flags & EIPC_FLAG_HMAC) {
-        uint8_t signable[EIPC_MAX_FRAME];
+        uint8_t signable[EIPC_FRAME_BUF_SIZE];
         size_t signable_len = eipc_frame_signable_bytes(&frame, signable, sizeof(signable));
         if (signable_len == 0)
             return EIPC_ERR_INTEGRITY;
@@ -145,7 +145,7 @@ eipc_status_t eipc_server_send_ack(eipc_conn_t *conn, const char *request_id,
     }
 
     {
-        uint8_t signable[EIPC_MAX_FRAME];
+        uint8_t signable[EIPC_FRAME_BUF_SIZE];
         signable_len = eipc_frame_signable_bytes(&frame, signable, sizeof(signable));
         if (signable_len == 0) return EIPC_ERR_INTEGRITY;
         eipc_hmac_sign(conn->hmac_key, conn->hmac_key_len,
@@ -195,7 +195,7 @@ eipc_status_t eipc_server_send_message(eipc_conn_t *conn, const eipc_message_t *
     }
 
     {
-        uint8_t signable[EIPC_MAX_FRAME];
+        uint8_t signable[EIPC_FRAME_BUF_SIZE];
         signable_len = eipc_frame_signable_bytes(&frame, signable, sizeof(signable));
         if (signable_len == 0) return EIPC_ERR_INTEGRITY;
         eipc_hmac_sign(conn->hmac_key, conn->hmac_key_len,
