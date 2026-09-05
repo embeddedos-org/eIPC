@@ -1,0 +1,5 @@
+=== EoSim Native Log ===
+Platform: qemu-q35
+Arch: x86_64
+
+EoSim Virtual Machine: qemu-q35 (x86_64)\nRAM: 64 MB | Peripherals: 6\nBooting...\n\nSimulation complete: 10000 cycles in 0.006s\nEoS booted successfully\n

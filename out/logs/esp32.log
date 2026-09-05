@@ -1,0 +1,5 @@
+=== EoSim Native Log ===
+Platform: esp32
+Arch: xtensa
+
+EoSim Virtual Machine: esp32 (xtensa)\nRAM: 64 MB | Peripherals: 6\nBooting...\n\nSimulation complete: 10000 cycles in 0.005s\nEoS booted successfully\n
