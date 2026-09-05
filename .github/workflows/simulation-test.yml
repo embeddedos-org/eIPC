@@ -10,7 +10,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EOSIM_VERSION: "0.1.0"
+  # v0.1.0 has never existed. embeddedos-org/EoSim tags v1.0.0 through v3.0.1,
+  # and no release of it publishes a wheel, so both install shapes below used
+  # to fail outright. v1.5.0 is the release marked Latest.
+  EOSIM_VERSION: "1.5.0"
 
 permissions:
   contents: read
@@ -76,7 +79,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install EoSim
-        run: pip install "eosim @ https://github.com/embeddedos-org/EoSim/releases/download/v${{ env.EOSIM_VERSION }}/eosim-${{ env.EOSIM_VERSION }}-py3-none-any.whl"
+        run: |
+          git clone --depth 1 --branch v${{ env.EOSIM_VERSION }} https://github.com/embeddedos-org/EoSim.git "${{ runner.temp }}/eosim"
+          pip install -e "${{ runner.temp }}/eosim"
       - name: Validate all platforms
         run: |
           eosim list

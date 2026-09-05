@@ -1,0 +1,5 @@
+=== EoSim Native Log ===
+Platform: riscv64-linux
+Arch: riscv64
+
+EoSim Virtual Machine: riscv64-linux (riscv64)\nRAM: 64 MB | Peripherals: 6\nBooting...\n\nSimulation complete: 10000 cycles in 0.005s\nEoS booted successfully\n

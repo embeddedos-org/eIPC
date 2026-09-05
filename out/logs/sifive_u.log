@@ -1,0 +1,5 @@
+=== EoSim Native Log ===
+Platform: sifive_u
+Arch: riscv64
+
+EoSim Virtual Machine: sifive_u (riscv64)\nRAM: 64 MB | Peripherals: 6\nBooting...\n\nSimulation complete: 10000 cycles in 0.005s\nEoS booted successfully\n

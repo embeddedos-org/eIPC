@@ -1,0 +1,5 @@
+=== EoSim Native Log ===
+Platform: arm64-linux
+Arch: arm64
+
+EoSim Virtual Machine: arm64-linux (arm64)\nRAM: 64 MB | Peripherals: 6\nBooting...\n\nSimulation complete: 10000 cycles in 0.006s\nEoS booted successfully\n
