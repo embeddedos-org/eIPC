@@ -24,6 +24,14 @@ eipc_status_t eipc_frame_encode(const eipc_frame_t *frame,
     if (!frame || !buf || !out_len)
         return EIPC_ERR_INVALID;
 
+    /* header_len and payload_len are how far the memcpys below read into
+     * frame->header and frame->payload, so they must be bounded by those
+     * arrays before either is used. eipc_frame_decode() already does this;
+     * the encode side did not, and buf_size alone does not substitute for it. */
+    if (frame->header_len > EIPC_MAX_HEADER ||
+        frame->payload_len > EIPC_MAX_PAYLOAD)
+        return EIPC_ERR_FRAME_TOO_LARGE;
+
     total = EIPC_FRAME_FIXED_SIZE + frame->header_len + frame->payload_len;
     if (frame->flags & EIPC_FLAG_HMAC)
         total += EIPC_MAC_SIZE;
@@ -154,6 +162,12 @@ size_t eipc_frame_signable_bytes(const eipc_frame_t *frame,
     size_t pos = 0;
 
     if (!frame || !buf)
+        return 0;
+
+    /* Same exposure as eipc_frame_encode(): bound the lengths against the
+     * arrays they index before copying out of them. */
+    if (frame->header_len > EIPC_MAX_HEADER ||
+        frame->payload_len > EIPC_MAX_PAYLOAD)
         return 0;
 
     total = EIPC_FRAME_FIXED_SIZE + frame->header_len + frame->payload_len;
