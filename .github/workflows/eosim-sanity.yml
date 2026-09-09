@@ -6,10 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  # v0.1.0 has never existed. embeddedos-org/EoSim tags v1.0.0 through v3.0.1,
-  # and no release of it publishes a wheel, so both install shapes below used
-  # to fail outright. v1.5.0 is the release marked Latest.
-  EOSIM_VERSION: "1.5.0"
+  # Install an existing immutable EoSim release tag directly from source.
+  EOSIM_VERSION: "3.0.1"
 
 permissions:
   contents: read
@@ -40,13 +38,13 @@ jobs:
         run: |
           eosim --version
           eosim list
-      - name: Validate all platform configs
+      - name: Exercise registry and doctor commands
         run: |
           eosim list
           eosim doctor
 
   nested-simulation:
-    name: Nested Simulation (${{ matrix.platform }})
+    name: EoSim run smoke check (${{ matrix.platform }})
     needs: install-validate
     runs-on: ubuntu-latest
     strategy:
@@ -69,13 +67,13 @@ jobs:
         run: |
           git clone --depth 1 --branch v${{ env.EOSIM_VERSION }} https://github.com/embeddedos-org/EoSim.git /tmp/eosim
           pip install -e /tmp/eosim
-      - name: Simulate ${{ matrix.platform }}
+      - name: Exercise EoSim run command (${{ matrix.platform }})
         run: |
           eosim run ${{ matrix.platform }} --headless --timeout 10
-          echo "${{ matrix.platform }}: PASSED"
+          echo "${{ matrix.platform }}: eosim run exited successfully (execution may be a dry run)"
 
   nested-guest-install:
-    name: Guest OS Install (${{ matrix.guest }})
+    name: Linux platform run smoke check (${{ matrix.guest }})
     needs: install-validate
     runs-on: ubuntu-latest
     strategy:
@@ -97,11 +95,11 @@ jobs:
         run: |
           git clone --depth 1 --branch v${{ env.EOSIM_VERSION }} https://github.com/embeddedos-org/EoSim.git /tmp/eosim
           pip install -e /tmp/eosim
-      - name: Boot guest and test EoSim inside
+      - name: Exercise EoSim run command for ${{ matrix.guest }}
         run: |
-          echo "=== Nested Guest: ${{ matrix.guest }} ==="
+          echo "=== Platform run smoke check: ${{ matrix.guest }} ==="
           eosim run ${{ matrix.platform }} --headless --timeout 15
-          echo "${{ matrix.guest }}: PASSED"
+          echo "${{ matrix.guest }}: eosim run exited successfully (execution may be a dry run)"
 
   windows-sanity:
     name: Windows Sanity
@@ -149,12 +147,20 @@ jobs:
           echo "  EoSim Sanity Results"
           echo "════════════════════════════════════════════════"
           echo "Install & Validate (3 OS × 3 Py):  ${{ needs.install-validate.result }}"
-          echo "Nested Simulation (7 platforms):    ${{ needs.nested-simulation.result }}"
-          echo "Nested Guest Install (3 guests):    ${{ needs.nested-guest-install.result }}"
+          echo "Run-command smoke checks (7):        ${{ needs.nested-simulation.result }}"
+          echo "Linux platform smoke checks (3):     ${{ needs.nested-guest-install.result }}"
           echo "Windows Sanity:                     ${{ needs.windows-sanity.result }}"
           echo "macOS Sanity:                       ${{ needs.macos-sanity.result }}"
           echo "════════════════════════════════════════════════"
-          if [ "${{ needs.install-validate.result }}" != "success" ]; then
-            echo "❌ Install/validate failed"; exit 1
-          fi
-          echo "✅ All EoSim sanity checks passed"
+          for result in \
+            "${{ needs.install-validate.result }}" \
+            "${{ needs.nested-simulation.result }}" \
+            "${{ needs.nested-guest-install.result }}" \
+            "${{ needs.windows-sanity.result }}" \
+            "${{ needs.macos-sanity.result }}"; do
+            if [ "$result" != "success" ]; then
+              echo "❌ A required EoSim installation or CLI smoke job failed or was skipped"
+              exit 1
+            fi
+          done
+          echo "✅ All EoSim installation and CLI smoke checks passed"

@@ -21,6 +21,7 @@ Thumbs.db
 build/
 build-*/
 dist/
+out/
 node_modules/
 __pycache__/
 .venv/
