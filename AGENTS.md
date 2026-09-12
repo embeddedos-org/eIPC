@@ -96,3 +96,37 @@ You will. The rule is: **record it, do not absorb it, do not drop it.**
 Silently fixing something outside your task makes the diff unreviewable.
 Silently ignoring it means nobody ever looks again. Neither is acceptable; the
 note is what makes the difference.
+
+---
+
+## Community rollout notes
+
+### Build inputs
+Build manifests found at the repo root and in the C SDK: Dockerfile, Makefile, go.mod, sdk/c/CMakeLists.txt, sdk/c/tests/CMakeLists.txt. See also [README.md](./README.md).
+
+### Test commands (documented in-repo)
+Reproduced from [README.md](./README.md) (sections Build/Test) and [CONTRIBUTING.md](./CONTRIBUTING.md) (CI Requirements / How to Verify Locally). Only commands that appear in those files or the Makefile are listed:
+
+make test           # go test -race -v ./... (Makefile test target)
+make bench          # go test -bench=. -benchmem ./core/ ./protocol/ (Makefile bench target)
+make vet            # go vet ./... (Makefile vet target)
+go build ./...      # Go SDK build check (CONTRIBUTING)
+go test -race -v ./...  # Go SDK full suite (CONTRIBUTING)
+gofmt -l .          # formatting check (CONTRIBUTING)
+
+C SDK (CONTRIBUTING C SDK section):
+
+cd sdk/c
+mkdir build
+cmake ..
+cmake --build .
+ctest --output-on-failure
+
+### Contributing
+Follow [CONTRIBUTING.md](./CONTRIBUTING.md): conventional commits, the PR checklist (go build ./..., go test -race ./..., go vet ./..., gofmt, C SDK build/tests when C code changed), and platform build tags.
+
+### Security
+See [SECURITY.md](./SECURITY.md): report vulnerabilities to security@embeddedos.org; do not open public issues for them.
+
+### Review and automation
+PRs must pass CI (Build on ubuntu/windows/macos, plus CodeQL and Scorecard) and carry a linked same-repository issue enforced by .github/workflows/linked-issue.yml. Use the PR template single Closing issue section: Fixes #<same-repository issue number>. The project wiki is mirrored byte-for-byte under [docs/wiki/Home.md](./docs/wiki/Home.md).
