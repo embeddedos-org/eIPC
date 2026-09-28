@@ -1,4 +1,4 @@
-name: QEMU Simulation Test
+name: EoSim Platform CLI Validation
 
 on:
   schedule:
@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  EOSIM_VERSION: "0.1.0"
+  # Install an existing immutable EoSim release tag directly from source.
+  EOSIM_VERSION: "3.0.1"
 
 permissions:
   contents: read
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   simulate:
-    name: EoSim ${{ matrix.platform }}
+    name: EoSim run smoke check (${{ matrix.platform }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -40,24 +41,22 @@ jobs:
         run: |
           git clone --depth 1 --branch v${{ env.EOSIM_VERSION }} https://github.com/embeddedos-org/EoSim.git /tmp/eosim
           pip install -e /tmp/eosim
-      - name: Validate platform
+      - name: Load platform registry
         run: eosim list
-      - name: Simulate ${{ matrix.platform }}
+      - name: Exercise EoSim run command (${{ matrix.platform }})
         run: |
-          echo "=== EoSim Simulation: ${{ matrix.platform }} ==="
+          echo "=== EoSim run-command smoke check: ${{ matrix.platform }} ==="
           eosim run ${{ matrix.platform }} --headless --timeout 15
-          echo "${{ matrix.platform }}: PASSED"
-      - name: Run platform tests
-        run: eosim test ${{ matrix.platform }}
-        continue-on-error: true
+          echo "${{ matrix.platform }}: eosim run exited successfully (execution may be a dry run)"
       - name: Collect artifacts
+        if: always()
         run: |
           mkdir -p out
           eosim info ${{ matrix.platform }} > out/${{ matrix.platform }}-info.txt 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qemu-sim-${{ matrix.platform }}
+          name: eosim-validation-${{ matrix.platform }}
           path: out/
           retention-days: 7
 
@@ -74,14 +73,16 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install EoSim
-        run: pip install "eosim @ https://github.com/embeddedos-org/EoSim/releases/download/v${{ env.EOSIM_VERSION }}/eosim-${{ env.EOSIM_VERSION }}-py3-none-any.whl"
-      - name: Validate all platforms
+        run: |
+          git clone --depth 1 --branch v${{ env.EOSIM_VERSION }} https://github.com/embeddedos-org/EoSim.git "${{ runner.temp }}/eosim"
+          pip install -e "${{ runner.temp }}/eosim"
+      - name: Exercise EoSim registry and doctor commands
         run: |
           eosim list
           eosim doctor
 
   sanity-gate:
-    name: QEMU Simulation Gate
+    name: EoSim Platform Validation Gate
     if: always()
     needs: [simulate, cross-platform-verify]
     runs-on: ubuntu-latest
@@ -89,15 +90,15 @@ jobs:
       - name: Results
         run: |
           echo "════════════════════════════════════════════"
-          echo "  QEMU Simulation Results (via EoSim)"
+          echo "  EoSim CLI Validation Results"
           echo "════════════════════════════════════════════"
-          echo "Simulation (8 platforms):      ${{ needs.simulate.result }}"
+          echo "Run-command smoke checks (8):  ${{ needs.simulate.result }}"
           echo "Cross-Platform (Win/Lin/Mac):  ${{ needs.cross-platform-verify.result }}"
           echo "════════════════════════════════════════════"
           if [ "${{ needs.simulate.result }}" != "success" ]; then
-            echo "❌ Simulation failed"; exit 1
+            echo "❌ EoSim run-command validation failed"; exit 1
           fi
           if [ "${{ needs.cross-platform-verify.result }}" != "success" ]; then
             echo "❌ Cross-platform verification failed"; exit 1
           fi
-          echo "✅ All QEMU simulation checks passed"
+          echo "✅ All EoSim CLI validation checks passed"
