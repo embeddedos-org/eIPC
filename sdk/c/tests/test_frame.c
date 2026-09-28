@@ -139,7 +139,46 @@ static void test_protocol_constants(void) {
     assert(EIPC_MAC_SIZE == 32);
     assert(EIPC_FRAME_FIXED_SIZE == 16);
     assert(EIPC_MAX_FRAME == (1U << 20));
+    /* The encode buffer is sized by what an eipc_frame_t can hold, not by the
+     * 1 MB wire ceiling. Pinned so it cannot drift back. */
+    assert(EIPC_FRAME_BUF_SIZE == 16 + 1024 + 4096 + 32);
+    assert(EIPC_FRAME_BUF_SIZE < EIPC_MAX_FRAME);
     PASS("protocol_constants");
+}
+
+/* A header_len or payload_len larger than the struct's own arrays makes
+ * eipc_frame_encode() read past them. buf_size alone does not catch it — a
+ * 4097-byte payload still fits an EIPC_FRAME_BUF_SIZE buffer — so the codec
+ * bounds the lengths explicitly, as the decode side already did. */
+static void test_frame_encode_rejects_oversized_lengths(void) {
+    eipc_frame_t frame;
+    uint8_t buf[EIPC_FRAME_BUF_SIZE];
+    size_t out_len = 0;
+
+    memset(&frame, 0, sizeof(frame));
+    frame.version = EIPC_PROTOCOL_VER;
+    frame.msg_type = EIPC_MSG_INTENT;
+
+    frame.header_len = EIPC_MAX_HEADER + 1;
+    assert(eipc_frame_encode(&frame, buf, sizeof(buf), &out_len)
+           == EIPC_ERR_FRAME_TOO_LARGE);
+
+    frame.header_len = 0;
+    frame.payload_len = EIPC_MAX_PAYLOAD + 1;
+    assert(eipc_frame_encode(&frame, buf, sizeof(buf), &out_len)
+           == EIPC_ERR_FRAME_TOO_LARGE);
+
+    /* signable_bytes has the same exposure and reports refusal as 0. */
+    assert(eipc_frame_signable_bytes(&frame, buf, sizeof(buf)) == 0);
+
+    /* A frame filled to both maxima, with a MAC, must still fit exactly. */
+    frame.header_len = EIPC_MAX_HEADER;
+    frame.payload_len = EIPC_MAX_PAYLOAD;
+    frame.flags = EIPC_FLAG_HMAC;
+    assert(eipc_frame_encode(&frame, buf, sizeof(buf), &out_len) == EIPC_OK);
+    assert(out_len == EIPC_FRAME_BUF_SIZE);
+
+    PASS("frame_encode_rejects_oversized_lengths");
 }
 
 static void test_priority_constants(void) {
@@ -171,6 +210,7 @@ int main(void) {
     test_frame_encode_with_hmac_flag();
     test_frame_encode_buffer_too_small();
     test_frame_signable_bytes();
+    test_frame_encode_rejects_oversized_lengths();
     test_msg_type_constants();
     test_protocol_constants();
     test_priority_constants();

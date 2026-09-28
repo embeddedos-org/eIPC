@@ -72,7 +72,7 @@ static eipc_status_t build_and_send(eipc_client_t *c,
     }
 
     {
-        uint8_t signable[EIPC_MAX_FRAME];
+        uint8_t signable[EIPC_FRAME_BUF_SIZE];
         signable_len = eipc_frame_signable_bytes(&frame, signable, sizeof(signable));
         if (signable_len == 0)
             return EIPC_ERR_INTEGRITY;
@@ -263,7 +263,7 @@ eipc_status_t eipc_client_receive(eipc_client_t *c, eipc_message_t *msg) {
     if (rc != EIPC_OK) return rc;
 
     if (frame.flags & EIPC_FLAG_HMAC) {
-        uint8_t signable[EIPC_MAX_FRAME];
+        uint8_t signable[EIPC_FRAME_BUF_SIZE];
         size_t signable_len = eipc_frame_signable_bytes(&frame, signable, sizeof(signable));
         if (signable_len == 0)
             return EIPC_ERR_INTEGRITY;
