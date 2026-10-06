@@ -42,9 +42,9 @@
 - [ ] Commit messages follow <type>(<scope>): <description> convention
 - [ ] Branch is rebased on latest master
 
-## Related Issues
+## Closing issue
 
-<!-- Reference related issues: Closes #XX, Fixes #YY -->
+Fixes #<same-repository issue number>
 
 
 ## Screenshots / Logs

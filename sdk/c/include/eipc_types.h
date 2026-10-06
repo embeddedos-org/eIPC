@@ -116,6 +116,18 @@ typedef struct {
 
 #define EIPC_FRAME_FIXED_SIZE  16  /* 4+2+1+1+4+4 */
 
+/* Largest byte string eipc_frame_encode() can produce from an eipc_frame_t:
+ * the fixed preamble, the struct's own header and payload arrays, and the
+ * optional MAC. Buffers that hold an encoded frame are sized by THIS, not by
+ * EIPC_MAX_FRAME.
+ *
+ * EIPC_MAX_FRAME is the wire ceiling shared with the Go side. It is 1 MB, some
+ * 200x what an eipc_frame_t can ever hold, so using it to size a local buffer
+ * costs a megabyte of stack per call for no reachable benefit — and this SDK
+ * cross-compiles for ARM Cortex-M4, where that is the whole device. */
+#define EIPC_FRAME_BUF_SIZE  (EIPC_FRAME_FIXED_SIZE + EIPC_MAX_HEADER + \
+                              EIPC_MAX_PAYLOAD + EIPC_MAC_SIZE)
+
 typedef struct {
     uint16_t version;
     uint8_t  msg_type;

@@ -174,7 +174,7 @@ eipc_status_t eipc_transport_accept(eipc_socket_t listen_sock,
 }
 
 eipc_status_t eipc_transport_send_frame(eipc_socket_t sock, const eipc_frame_t *frame) {
-    uint8_t encoded[EIPC_MAX_FRAME];
+    uint8_t encoded[EIPC_FRAME_BUF_SIZE];
     size_t encoded_len = 0;
     eipc_status_t rc;
     uint8_t len_prefix[4];

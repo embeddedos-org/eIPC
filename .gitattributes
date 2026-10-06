@@ -1,0 +1,4 @@
+# Normalize line endings: Go sources must check out as LF on every
+# platform. The windows runner defaults to core.autocrlf=true, which
+# made `gofmt -l` fail CI on CRLF working-tree copies of LF-clean files.
+*.go text eol=lf
