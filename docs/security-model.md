@@ -1,5 +1,28 @@
 # EIPC Security Model
 
+## Design principle 1: hostile boundary (2026-10-07)
+
+**Never trust data crossing the IPC boundary because it came from inside.**
+This is the first principle of the zero-copy tensor transport design, and
+everything below follows from it. A tensor arriving over IPC is untrusted
+input until validated — the sending process being a fellow eos component
+changes nothing.
+
+Evidence (Oct 6): the MCP chain-of-trust story — MCP servers hold
+credentials for every agent, agents trust each other by default, and one
+compromised agent becomes a network launchpad — is the same failure mode in
+miniature. And the "from inside" trust is what made the US-federal incident
+possible: 5 MCP servers unpatched 6 weeks post-disclosure, one of them
+logging veterans' SSNs in **unredacted error responses**. The credential was
+fine; the boundary was not.
+
+First-class requirement: **upstream-response redaction for tensor/IPC
+payloads**. PII/secret scrubbing is a transport requirement, not a logging
+afterthought. The redaction points must be defined in the zero-copy path
+itself — every place a payload crosses a trust boundary gets a defined
+redaction step, before the payload is usable.
+
+
 ## Overview
 
 EIPC implements a defense-in-depth security architecture with five layers: authentication, integrity, replay protection, capability-based authorization, and policy enforcement. This document describes each mechanism, the threat model, and known limitations.
