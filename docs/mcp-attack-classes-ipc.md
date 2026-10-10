@@ -38,3 +38,28 @@ The guide's recommended controls map 1:1 onto eIPC's day-one posture:
   the org-wide hostile-protocol posture.
 - `embeddedos-org/eVera` `docs/mcp-tool-use-policy.md` — the agent-side
   policy (credential isolation, pinned versions, approval on config change).
+
+## Worked examples (October 2026)
+
+Two timestamped cases that move the table above from taxonomy to evidence.
+
+**Langflow CVE-2026-105697 (CVSS 9.9, disclosed Oct 5) — class 4, command
+injection, with a CVE number and a patch.** Langflow's MCP server handling
+launched a user-supplied `command`/`args` pair via `bash -c` on the stdio
+transport — no allowlist on the executable, no validation of the arguments.
+Public proof-of-concept; fixed in 1.10.3. This is the exact failure the
+class-4 control exists for: executable commands declared against an
+explicit allowlist at registration time, never `bash -c` on
+user-supplied strings. The vulnerability was not in Langflow's business
+logic — it was in the *protocol handling*, which is why the control has to
+live at the IPC boundary, not in each tool.
+
+**ClawSecure AI Agent Threat Report Vol 1 (Sept 24) — the gap is in the
+protocol.** ClawSecure cracked three clean, production MCP
+implementations — Linear, Notion, and Dropbox Dash — with the same attack
+class. Three independent codebases, three vendors, one flaw shape: when the
+same class lands in three clean implementations, the defect is not in any
+one implementation. It is in the protocol's missing security requirements —
+the reason this document, the eSec hostile-protocol hardening doc, and the
+eVera tool-use policy all have to exist. External validation of the
+framing, with vendor names attached.
