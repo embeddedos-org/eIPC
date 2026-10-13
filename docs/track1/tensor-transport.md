@@ -120,7 +120,43 @@ address space.
 
 - mmap-backed consumer views in `transport/shm` (`shm_linux.go`) with
   read-only mappings, so the narrow-window rule is hardware-enforced.
-- `core.Message` helper to publish a descriptor with the matching
-  `Capability` set atomically (descriptor + grant in one constructor).
+- ~~`core.Message` helper to publish a descriptor with the matching
+  `Capability` set atomically~~ — landed 2026-10-13, see section 6.
 - Quantized-dtype packing contracts (INT4/Q4_0/Q8_0 element layout) so
   producer and consumer agree on byte packing inside the claimed span.
+
+
+## 6. Message binding (landed 2026-10-13)
+
+The phase-3 helper from section 5 now exists. Because `core` already
+imports `protocol` (the endpoint codec), the binding is two-layered —
+a `core.Message` cannot be named from inside `protocol` without an
+import cycle:
+
+- `protocol/tensor_message.go` — the capability contract, shared by
+  every envelope: `(*TensorDescriptor).MessagePayload()` validates
+  the descriptor, encodes it, and returns the primary capability (the
+  first declared claim); `TensorFromPayload(payload, capability)`
+  decodes, validates, and requires the asserted capability to be one
+  of the descriptor's claims.
+- `core/tensor_message.go` — `AttachTensor(d)` builds a `core.Message`
+  with the descriptor as `Payload` and `Capability` set from the same
+  validated descriptor, atomically; `ExtractTensor(m)` is the
+  receiving half.
+
+Fail-closed rules, enforced identically on both paths:
+
+- A descriptor declaring **no capabilities is refused at attach** —
+  a tensor that names no grant does not travel.
+- Extraction **rejects a capability mismatch**: a `Capability`
+  widened, swapped, or stripped in flight no longer matches the
+  descriptor's claims, and the descriptor is not handed out.
+
+**Zero-copy note.** What crosses a process boundary in this binding
+is the descriptor only: it carries arena **handles** (`ShmName` +
+`Offset` + `Size`) and declared capabilities — raw pointers never
+cross. This follows the dma-buf/IIO handle pattern: the exporter
+allocates the segment, importers map by handle, and the broker/kernel
+validates the mapping against the declared window. Today's binding
+transports the descriptor; shared-arena mapping by handle is the
+phase-2 step, and the descriptor property/fuzz tests will guard it.
