@@ -90,6 +90,7 @@ var (
 	ErrTensorDigest   = errors.New("eipc: model digest is not a valid sha256")
 	ErrTensorCaps     = errors.New("eipc: too many or oversized capability claims")
 	ErrTensorTooLarge = errors.New("eipc: tensor descriptor exceeds decode bounds")
+	ErrTensorAlign    = errors.New("eipc: tensor offset not aligned to dtype")
 )
 
 // Validate checks the descriptor for internal consistency without touching
@@ -134,6 +135,16 @@ func (d *TensorDescriptor) Validate() error {
 		}
 	}
 	footprint := uint64(extent) * uint64(elem)
+	// The claimed span is read as typed elements straight from the
+	// mapping, so its start must be aligned to the element size; a
+	// misaligned offset is a descriptor that lies about its layout.
+	if d.Offset%uint64(elem) != 0 {
+		return fmt.Errorf("%w: offset %d for %d-byte dtype", ErrTensorAlign, d.Offset, elem)
+	}
+	// The span [Offset, Offset+Size) must not wrap the address space.
+	if d.Offset > ^uint64(0)-d.Size {
+		return fmt.Errorf("%w: offset %d + size %d overflows uint64", ErrTensorStrides, d.Offset, d.Size)
+	}
 	if d.Size < footprint {
 		return fmt.Errorf("%w: size %d < footprint %d", ErrTensorStrides, d.Size, footprint)
 	}

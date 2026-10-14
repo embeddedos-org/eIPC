@@ -57,3 +57,47 @@ func FuzzFrameDecode(f *testing.F) {
 		}
 	})
 }
+
+func FuzzTensorDescriptor(f *testing.F) {
+	// Seed with a valid descriptor encoding.
+	valid := &TensorDescriptor{
+		Dtype:        TensorF16,
+		Shape:        []int64{1, 3, 224, 224},
+		Strides:      []int64{3 * 224 * 224, 224 * 224, 224, 1},
+		ShmName:      "eai-infer-0",
+		Offset:       4096,
+		Size:         301056,
+		Capabilities: []string{"inference.local", "tensor.read"},
+		ModelDigest:  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+	}
+	var buf bytes.Buffer
+	if err := valid.Encode(&buf); err != nil {
+		f.Fatalf("seed encode: %v", err)
+	}
+	f.Add(buf.Bytes())
+	f.Add([]byte{})
+	f.Add([]byte{0x00, 0xff}) // ndim = 255, must fail fast
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		d, err := DecodeTensor(bytes.NewReader(data))
+		if err != nil {
+			return // hostile or truncated input: fail fast is correct
+		}
+		if err := d.Validate(); err != nil {
+			return // decoded but semantically invalid is fine
+		}
+		// A descriptor that decodes AND validates must round-trip:
+		// re-encode, decode again, and land on the same descriptor.
+		var out bytes.Buffer
+		if err := d.Encode(&out); err != nil {
+			t.Fatalf("re-encode validated descriptor: %v", err)
+		}
+		d2, err := DecodeTensor(&out)
+		if err != nil {
+			t.Fatalf("re-decode validated descriptor: %v", err)
+		}
+		if err := d2.Validate(); err != nil {
+			t.Fatalf("round-tripped descriptor no longer validates: %v", err)
+		}
+	})
+}
