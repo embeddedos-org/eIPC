@@ -91,6 +91,7 @@ var (
 	ErrTensorCaps     = errors.New("eipc: too many or oversized capability claims")
 	ErrTensorTooLarge = errors.New("eipc: tensor descriptor exceeds decode bounds")
 	ErrTensorAlign    = errors.New("eipc: tensor offset not aligned to dtype")
+	ErrTensorOverlap  = errors.New("eipc: tensor span overlaps a registered span")
 )
 
 // Validate checks the descriptor for internal consistency without touching
