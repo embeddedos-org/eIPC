@@ -131,12 +131,14 @@ func TestTensorRegistryPropertyFreedSpansReusable(t *testing.T) {
 				t.Fatalf("step %d: deregister of live span at %d = false", step, offset)
 			}
 			delete(live, offset)
-			_ = size
-			// Immediately re-register the exact freed span.
-			if err := r.Register(registryDescriptor("seg", offset, 16)); err != nil {
+			// Immediately re-register the exact freed span — same
+			// offset AND size. (Registering a larger span here
+			// would be a different claim and could legitimately
+			// hit a neighbouring live span.)
+			if err := r.Register(registryDescriptor("seg", offset, size)); err != nil {
 				t.Fatalf("step %d: re-register freed span at %d: %v", step, offset, err)
 			}
-			live[offset] = 16
+			live[offset] = size
 			continue
 		}
 		size := uint64(rng.Intn(8)+1) * 4
