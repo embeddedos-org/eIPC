@@ -1,0 +1,31 @@
+# eIPC
+
+> llms.txt for the eIPC repository (embeddedos-org/eIPC).
+> Status: secure inter-process communication for EmbeddedOS,
+> implemented in Go — authenticated channels, per-tenant
+> isolation, and the protocol TensorRegistry for zero-copy
+> tensor transport between processes.
+
+eIPC is the IPC layer of the EmbeddedOS ecosystem: the mechanism
+by which processes, services and (in the Track 1 design) loadable
+ML modules exchange data with declared capabilities, without
+ambient authority.
+
+## Docs
+
+- [EIPC Architecture](docs/architecture.md)
+- [EIPC API Reference](docs/api-reference.md)
+- [EIPC Security Model](docs/security-model.md)
+- [EIPC Key Management Guide](docs/key-management.md)
+- [Tool registration: the command-allowlist requirement](docs/tool-registration-allowlist.md)
+- [MCP attack classes on the eIPC attack surface](docs/mcp-attack-classes-ipc.md)
+- [Zero-copy tensor descriptor transport (Track 1, phase 2)](docs/track1/tensor-transport.md)
+- [Zero-copy tensor transport for eIPC](docs/track1/zero-copy-tensor-ipc.md)
+- [EIPC Performance Guide](docs/performance.md)
+- [EIPC Benchmarks & Comparisons](docs/benchmarks.md)
+- [EIPC Use Cases](docs/use-cases.md)
+
+## Machine-readable
+
+- [llms.txt](llms.txt) — this file
+- [llms-full.txt](llms-full.txt) — the docs above concatenated as one document
