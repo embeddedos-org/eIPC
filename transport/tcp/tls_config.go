@@ -95,7 +95,8 @@ func LoadTLSConfig(certFile, keyFile, caFile string) (*tls.Config, error) {
 }
 
 // AutoTLSConfig generates a self-signed cert for development use.
-// Controlled by EIPC_TLS_AUTO_CERT env var.
+// It is called by SetupTLSFromEnv when EIPC_TLS_AUTO_CERT is exactly
+// "true"; this function itself reads no environment variables.
 func AutoTLSConfig() (*tls.Config, error) {
 	cert, err := GenerateSelfSignedCert()
 	if err != nil {
