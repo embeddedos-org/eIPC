@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/embeddedos-org/eipc/protocol"
 	"github.com/embeddedos-org/eipc/transport"
@@ -141,7 +140,7 @@ func sendUnsignedFrame(t *testing.T, conn transport.Connection, c protocol.Codec
 		SessionID:     "session-unsigned",
 		RequestID:     "req-unsigned",
 		Sequence:      1,
-		Timestamp:     time.Now().Format(time.RFC3339Nano),
+		Timestamp:     "2026-01-01T00:00:00Z",  // fixed: TESTING.md forbids wall-clock dependence
 		Priority:      uint8(PriorityP0),
 		PayloadFormat: uint8(PayloadJSON),
 	}
