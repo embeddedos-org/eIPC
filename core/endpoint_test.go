@@ -140,7 +140,8 @@ func sendUnsignedFrame(t *testing.T, conn transport.Connection, c protocol.Codec
 		SessionID:     "session-unsigned",
 		RequestID:     "req-unsigned",
 		Sequence:      1,
-		Timestamp:     "2026-01-01T00:00:00Z",  // fixed: TESTING.md forbids wall-clock dependence
+		// Fixed timestamp: TESTING.md forbids wall-clock dependence in tests.
+		Timestamp:     "2026-01-01T00:00:00Z",
 		Priority:      uint8(PriorityP0),
 		PayloadFormat: uint8(PayloadJSON),
 	}
