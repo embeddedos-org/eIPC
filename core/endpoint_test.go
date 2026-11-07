@@ -136,10 +136,10 @@ func TestHeartbeatMessage(t *testing.T) {
 func sendUnsignedFrame(t *testing.T, conn transport.Connection, c protocol.Codec) {
 	t.Helper()
 	hdr := protocol.Header{
-		ServiceID:     "unsigned-peer",
-		SessionID:     "session-unsigned",
-		RequestID:     "req-unsigned",
-		Sequence:      1,
+		ServiceID: "unsigned-peer",
+		SessionID: "session-unsigned",
+		RequestID: "req-unsigned",
+		Sequence:  1,
 		// Fixed timestamp: TESTING.md forbids wall-clock dependence in tests.
 		Timestamp:     "2026-01-01T00:00:00Z",
 		Priority:      uint8(PriorityP0),
