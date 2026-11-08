@@ -78,10 +78,8 @@ func (e *ClientEndpoint) Receive() (Message, error) {
 		return Message{}, err
 	}
 
-	if frame.Flags&protocol.FlagHMAC != 0 {
-		if !integrity.Verify(e.hmacKey, frame.SignableBytes(), frame.MAC) {
-			return Message{}, ErrIntegrity
-		}
+	if err := verifyFrameIntegrity(e.hmacKey, frame); err != nil {
+		return Message{}, err
 	}
 
 	var hdr protocol.Header
@@ -147,6 +145,25 @@ func (e *ServerEndpoint) ValidateCapability(msgCap string) error {
 	return fmt.Errorf("%w: peer lacks capability %q", ErrCapability, msgCap)
 }
 
+// verifyFrameIntegrity enforces fail-closed HMAC on secured endpoints.
+// An endpoint configured with a key accepts only frames that carry a valid
+// MAC: an unsigned frame is rejected with ErrIntegrity even though its
+// sender omitted FlagHMAC. Previously verification was gated on the
+// sender-controlled FlagHMAC, so an unsigned frame was accepted even by a
+// keyed endpoint. Keyless endpoints (nil/empty key) keep today's behavior:
+// flagged frames are still verified (against the empty key) and unsigned
+// frames are accepted. Making keyless endpoints reject unsigned frames is
+// a separate API decision, not part of this change.
+func verifyFrameIntegrity(hmacKey []byte, frame *protocol.Frame) error {
+	if len(hmacKey) > 0 && frame.Flags&protocol.FlagHMAC == 0 {
+		return ErrIntegrity
+	}
+	if frame.Flags&protocol.FlagHMAC != 0 && !integrity.Verify(hmacKey, frame.SignableBytes(), frame.MAC) {
+		return ErrIntegrity
+	}
+	return nil
+}
+
 // NewServerEndpoint wraps a server-side connection.
 func NewServerEndpoint(conn transport.Connection, codec protocol.Codec, hmacKey []byte) *ServerEndpoint {
 	return &ServerEndpoint{
@@ -197,10 +214,8 @@ func (e *ServerEndpoint) Receive() (Message, error) {
 		return Message{}, err
 	}
 
-	if frame.Flags&protocol.FlagHMAC != 0 {
-		if !integrity.Verify(e.hmacKey, frame.SignableBytes(), frame.MAC) {
-			return Message{}, ErrIntegrity
-		}
+	if err := verifyFrameIntegrity(e.hmacKey, frame); err != nil {
+		return Message{}, err
 	}
 
 	var hdr protocol.Header

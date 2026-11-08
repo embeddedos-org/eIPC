@@ -102,6 +102,22 @@ Where preamble is the 16-byte fixed header:
 - **Covers entire frame**: Magic, version, type, flags, header, and payload are all signed
 - **Always-on by default**: Both `ClientEndpoint` and `ServerEndpoint` always set `FlagHMAC`
 
+### Fail-closed on secured endpoints
+
+A keyed endpoint accepts only frames that carry a valid MAC. An unsigned
+frame (no `FlagHMAC`) addressed to an endpoint configured with a key is
+rejected with `ErrIntegrity` — verification is no longer gated on the
+sender-controlled flag, which previously let an unsigned frame through
+even on a secured endpoint. Both `ClientEndpoint` and `ServerEndpoint`
+enforce this; both always sign on `Send`, so in-repo peers are unaffected.
+
+Keyless endpoints (nil/empty key) are unchanged by design: unsigned
+frames are still accepted there. A keyless endpoint is an unsecured
+endpoint, not a secured one with verification skipped — peers that need
+integrity must be moved to keyed endpoints. This change covers the Go
+core only; the C SDK server (`sdk/c/src/eipc_server.c`) still verifies
+HMAC only "if present" and is a recorded follow-up.
+
 ---
 
 ## 3. Replay Protection

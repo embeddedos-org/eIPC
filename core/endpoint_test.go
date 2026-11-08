@@ -4,6 +4,7 @@
 package core
 
 import (
+	"errors"
 	"net"
 	"testing"
 
@@ -126,5 +127,111 @@ func TestHeartbeatMessage(t *testing.T) {
 	}
 	if msg.Source != "monitor" {
 		t.Errorf("expected source 'monitor', got %q", msg.Source)
+	}
+}
+
+// sendUnsignedFrame transmits a raw frame with FlagHMAC clear, bypassing
+// Endpoint.Send (which always signs). It lets tests prove what a secured
+// endpoint does with a peer that simply does not sign.
+func sendUnsignedFrame(t *testing.T, conn transport.Connection, c protocol.Codec) {
+	t.Helper()
+	hdr := protocol.Header{
+		ServiceID: "unsigned-peer",
+		SessionID: "session-unsigned",
+		RequestID: "req-unsigned",
+		Sequence:  1,
+		// Fixed timestamp: TESTING.md forbids wall-clock dependence in tests.
+		Timestamp:     "2026-01-01T00:00:00Z",
+		Priority:      uint8(PriorityP0),
+		PayloadFormat: uint8(PayloadJSON),
+	}
+	hdrBytes, err := c.Marshal(hdr)
+	if err != nil {
+		t.Fatalf("marshal header: %v", err)
+	}
+	frame := &protocol.Frame{
+		Version: ProtocolVersion,
+		MsgType: MsgTypeToByte(TypeIntent),
+		Flags:   0,
+		Header:  hdrBytes,
+		Payload: []byte(`{"action":"ping"}`),
+	}
+	if err := conn.Send(frame); err != nil {
+		t.Fatalf("send unsigned frame: %v", err)
+	}
+}
+
+func TestSecuredServerEndpointRejectsUnsignedFrame(t *testing.T) {
+	clientConn, serverConn := setupTCPPair(t)
+	defer clientConn.Close()
+	defer serverConn.Close()
+
+	c := protocol.DefaultCodec()
+	serverEP := NewServerEndpoint(serverConn, c, []byte("server-key-32-bytes-long-cccccc!"))
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := serverEP.Receive()
+		errCh <- err
+	}()
+
+	sendUnsignedFrame(t, clientConn, c)
+
+	if err := <-errCh; !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("expected ErrIntegrity for unsigned frame on secured endpoint, got %v", err)
+	}
+}
+
+func TestSecuredClientEndpointRejectsUnsignedFrame(t *testing.T) {
+	clientConn, serverConn := setupTCPPair(t)
+	defer clientConn.Close()
+	defer serverConn.Close()
+
+	c := protocol.DefaultCodec()
+	clientEP := NewClientEndpoint(clientConn, c, []byte("client-key-32-bytes-long-dddddd!"), "session-unsigned")
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := clientEP.Receive()
+		errCh <- err
+	}()
+
+	sendUnsignedFrame(t, serverConn, c)
+
+	if err := <-errCh; !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("expected ErrIntegrity for unsigned frame on secured endpoint, got %v", err)
+	}
+}
+
+func TestUnsecuredEndpointAcceptsUnsignedFrame(t *testing.T) {
+	clientConn, serverConn := setupTCPPair(t)
+	defer clientConn.Close()
+	defer serverConn.Close()
+
+	c := protocol.DefaultCodec()
+	// Nil key = unsecured endpoint: today's behavior is preserved, and this
+	// test pins it intentionally. Changing it is a separate API decision.
+	serverEP := NewServerEndpoint(serverConn, c, nil)
+
+	msgCh := make(chan Message, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		received, err := serverEP.Receive()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		msgCh <- received
+	}()
+
+	sendUnsignedFrame(t, clientConn, c)
+
+	select {
+	case received := <-msgCh:
+		if string(received.Payload) != `{"action":"ping"}` {
+			t.Errorf("payload mismatch: got %q", string(received.Payload))
+		}
+	case err := <-errCh:
+		t.Fatalf("unsecured endpoint unexpectedly rejected unsigned frame: %v", err)
 	}
 }
