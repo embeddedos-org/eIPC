@@ -4,8 +4,11 @@
 package health
 
 import (
+	"fmt"
 	"sync"
 	"time"
+
+	"github.com/embeddedos-org/eipc/core"
 )
 
 // PeerStatus tracks the liveness state of a peer.
@@ -40,6 +43,11 @@ func NewService(interval, timeout time.Duration) *Service {
 }
 
 // RecordHeartbeat updates the liveness timestamp for a peer.
+//
+// RecordHeartbeat performs no identity check: any caller can record
+// health for any service ID. That is the unsecured/local path. Secured
+// servers must use RecordHeartbeatFor with the peer bound to the
+// connection instead.
 func (s *Service) RecordHeartbeat(serviceID, status string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -49,6 +57,18 @@ func (s *Service) RecordHeartbeat(serviceID, status string) {
 		Status:    status,
 		LastSeen:  time.Now(),
 	}
+}
+
+// RecordHeartbeatFor records a heartbeat only when serviceID is the
+// authenticated peer's own identity: a peer can no longer report health
+// for an arbitrary service ID. A nil peer behaves exactly like
+// RecordHeartbeat (unsecured/local path).
+func (s *Service) RecordHeartbeatFor(serviceID, status string, peer *core.AuthenticatedPeer) error {
+	if peer != nil && serviceID != peer.ServiceID {
+		return fmt.Errorf("%w: heartbeat for %q is not from authenticated peer %q", core.ErrAuth, serviceID, peer.ServiceID)
+	}
+	s.RecordHeartbeat(serviceID, status)
+	return nil
 }
 
 // IsAlive returns whether a peer has been heard from within the timeout window.

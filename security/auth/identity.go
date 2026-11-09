@@ -169,6 +169,22 @@ func (a *Authenticator) Authenticate(serviceID string) (*PeerIdentity, error) {
 	return peer, nil
 }
 
+// BoundPeer returns the core-level view of this authenticated peer for
+// dispatch binding (see core.AuthenticatedPeer). Returns nil for a nil
+// identity.
+func (p *PeerIdentity) BoundPeer() *core.AuthenticatedPeer {
+	if p == nil {
+		return nil
+	}
+	caps := make([]string, len(p.Capabilities))
+	copy(caps, p.Capabilities)
+	return &core.AuthenticatedPeer{
+		ServiceID:    p.ServiceID,
+		SessionToken: p.SessionToken,
+		Capabilities: caps,
+	}
+}
+
 // ValidateSession checks whether a session token is valid and not expired.
 func (a *Authenticator) ValidateSession(token string) (*PeerIdentity, error) {
 	a.mu.RLock()

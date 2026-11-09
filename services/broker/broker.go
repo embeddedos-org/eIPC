@@ -122,6 +122,17 @@ func (b *Broker) Route(msg core.Message) []RouteResult {
 	return results
 }
 
+// RouteFor validates msg against the authenticated peer before routing:
+// a forged Source or SessionID, or an ungranted Capability, is rejected
+// and nothing is delivered. A nil peer behaves exactly like Route
+// (unsecured/local path).
+func (b *Broker) RouteFor(msg core.Message, peer *core.AuthenticatedPeer) ([]RouteResult, error) {
+	if err := peer.ValidateMessage(msg); err != nil {
+		return nil, err
+	}
+	return b.Route(msg), nil
+}
+
 func (b *Broker) Fanout(msg core.Message) []RouteResult {
 	b.mu.RLock()
 	subs := make([]*Subscriber, 0, len(b.subscribers))
@@ -135,6 +146,16 @@ func (b *Broker) Fanout(msg core.Message) []RouteResult {
 		results[i] = RouteResult{ServiceID: sub.ServiceID, Err: err}
 	}
 	return results
+}
+
+// FanoutFor is Fanout with the same identity binding: the message is
+// only fanned out to subscribers when it genuinely comes from the
+// authenticated peer. A nil peer behaves exactly like Fanout.
+func (b *Broker) FanoutFor(msg core.Message, peer *core.AuthenticatedPeer) ([]RouteResult, error) {
+	if err := peer.ValidateMessage(msg); err != nil {
+		return nil, err
+	}
+	return b.Fanout(msg), nil
 }
 
 func (b *Broker) Subscribers() []string {

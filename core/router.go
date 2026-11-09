@@ -33,6 +33,10 @@ func (r *Router) Handle(msgType MessageType, handler HandlerFunc) {
 }
 
 // Dispatch routes a single message to its registered handler.
+//
+// Dispatch performs no identity check: any message reaches its handler.
+// That is the unsecured/local path. Secured servers must use DispatchFor
+// with the peer bound to the connection instead.
 func (r *Router) Dispatch(msg Message) (*Message, error) {
 	r.mu.RLock()
 	handler, ok := r.handlers[msg.Type]
@@ -44,8 +48,32 @@ func (r *Router) Dispatch(msg Message) (*Message, error) {
 	return handler(msg)
 }
 
+// DispatchFor validates msg against the authenticated peer before
+// dispatching: a forged Source or SessionID, or an ungranted Capability,
+// never reaches a handler. A nil peer behaves exactly like Dispatch
+// (unsecured/local path).
+func (r *Router) DispatchFor(msg Message, peer *AuthenticatedPeer) (*Message, error) {
+	if err := peer.ValidateMessage(msg); err != nil {
+		return nil, err
+	}
+	return r.Dispatch(msg)
+}
+
 // DispatchBatch processes a batch of messages in priority order (P0 first).
 func (r *Router) DispatchBatch(messages []Message) []DispatchResult {
+	return r.dispatchBatch(messages, r.Dispatch)
+}
+
+// DispatchBatchFor is DispatchBatch with per-message identity binding:
+// each message is validated against the authenticated peer before its
+// handler runs. A nil peer behaves exactly like DispatchBatch.
+func (r *Router) DispatchBatchFor(messages []Message, peer *AuthenticatedPeer) []DispatchResult {
+	return r.dispatchBatch(messages, func(msg Message) (*Message, error) {
+		return r.DispatchFor(msg, peer)
+	})
+}
+
+func (r *Router) dispatchBatch(messages []Message, dispatch func(Message) (*Message, error)) []DispatchResult {
 	pq := make(priorityQueue, len(messages))
 	for i, msg := range messages {
 		pq[i] = &priorityItem{msg: msg, index: i}
@@ -55,7 +83,7 @@ func (r *Router) DispatchBatch(messages []Message) []DispatchResult {
 	results := make([]DispatchResult, len(messages))
 	for pq.Len() > 0 {
 		item := heap.Pop(&pq).(*priorityItem)
-		resp, err := r.Dispatch(item.msg)
+		resp, err := dispatch(item.msg)
 		results[item.index] = DispatchResult{Response: resp, Err: err}
 	}
 	return results

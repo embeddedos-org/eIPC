@@ -118,6 +118,33 @@ integrity must be moved to keyed endpoints. This change covers the Go
 core only; the C SDK server (`sdk/c/src/eipc_server.c`) still verifies
 HMAC only "if present" and is a recorded follow-up.
 
+### Identity binding in dispatch
+
+Authentication used to end at the handshake: after challenge-response
+succeeded, nothing checked that later messages on the connection
+actually came from the authenticated peer. A peer authenticated as
+`ebot.client` could send a message with `Source: eipc-server` (or any
+other service) and it would be dispatched, and the heartbeat handler
+recorded liveness under the sender-controlled payload `Service` field,
+so any peer could forge health for an arbitrary service ID.
+
+After authentication the server now binds the peer to the connection
+(`ServerEndpoint.BindPeer`): every later message must carry the peer's
+`Source` and session token as `SessionID`, or `Receive` rejects it with
+`ErrAuth` and the connection is dropped. Dispatch goes through
+`Router.DispatchFor` (plus `Broker.RouteFor` / `FanoutFor` and
+`health.Service.RecordHeartbeatFor` for direct users), which additionally
+validates `Capability` against the peer's granted capabilities. The
+heartbeat handler records liveness under the envelope `Source`, never
+the payload's `Service` field. The shipped client already stamps its
+session token as `SessionID` on every post-auth message, so in-repo
+peers are unaffected.
+
+The unbound path is unchanged by design: `Dispatch`, `Route`,
+`Fanout`, and `RecordHeartbeat` perform no identity check and remain
+the unsecured/local API. Callers that need authentication must use the
+`*For` variants or bind the peer — the plain methods do not fail closed.
+
 ---
 
 ## 3. Replay Protection

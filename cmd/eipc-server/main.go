@@ -153,8 +153,16 @@ func main() {
 		if err := codec.Unmarshal(msg.Payload, &hb); err != nil {
 			return nil, err
 		}
-		healthSvc.RecordHeartbeat(hb.Service, hb.Status)
-		log.Printf("[HEARTBEAT] service=%s status=%s", hb.Service, hb.Status)
+		// Record under the envelope Source, never the payload's Service
+		// field: the payload is sender-controlled, so trusting it would
+		// let any peer forge health for an arbitrary service. The
+		// envelope Source is bound to the authenticated peer by
+		// DispatchFor before this handler runs.
+		if hb.Service != "" && hb.Service != msg.Source {
+			log.Printf("[HEARTBEAT] ignoring forged service=%q from source=%s", hb.Service, msg.Source)
+		}
+		healthSvc.RecordHeartbeat(msg.Source, hb.Status)
+		log.Printf("[HEARTBEAT] service=%s status=%s", msg.Source, hb.Status)
 		return nil, nil
 	})
 
@@ -543,8 +551,12 @@ func handleConnection(
 		log.Printf("[AUDIT] failed: %v", err)
 	}
 
-	// Set peer capabilities on the endpoint for validation
-	endpoint.SetPeerCapabilities(peer.Capabilities)
+	// Bind the authenticated peer identity to the endpoint: every later
+	// message on this connection must carry this peer's Source and
+	// session token (Receive rejects forgeries), and only its granted
+	// capabilities (ValidateCapability). This also sets the peer's
+	// capabilities, replacing the old SetPeerCapabilities call.
+	endpoint.BindPeer(peer.BoundPeer())
 
 	type authResult struct {
 		Status       string   `json:"status"`
@@ -632,7 +644,9 @@ func handleConnection(
 			continue
 		}
 
-		resp, err := router.Dispatch(msg)
+		// Dispatch bound to the authenticated peer: a forged Source or
+		// session token never reaches a handler.
+		resp, err := router.DispatchFor(msg, endpoint.BoundPeer())
 		if err != nil {
 			log.Printf("[DISPATCH] error: %v", err)
 			errPayload, err := codec.Marshal(core.AckEvent{
