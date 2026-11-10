@@ -36,8 +36,11 @@ jobs:
 
       - name: Gofmt check
         shell: bash
+        # Check every Go file in the module, not a hand-kept list of
+        # folders: the old list (cmd core transport) skipped config,
+        # examples, protocol, security, services and tests.
         run: |
-          out=$(gofmt -l cmd core transport)
+          out=$(gofmt -l .)
           if [ -n "$out" ]; then
             echo "::error::files need gofmt: $out"
             exit 1
