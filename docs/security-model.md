@@ -343,4 +343,5 @@ Events captured:
 | `EIPC_MAX_CONNECTIONS` | Max concurrent connections | `64` |
 | `EIPC_TLS_CERT` | TLS certificate path | — |
 | `EIPC_TLS_KEY` | TLS private key path | — |
+| `EIPC_TLS_CA` | CA bundle the client trusts to verify the server (RootCAs); also the mTLS CA on the server | — |
 | `EIPC_TLS_AUTO_CERT` | Auto-generate self-signed cert | `false` |

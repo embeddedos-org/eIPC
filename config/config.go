@@ -61,7 +61,13 @@ func LoadListenAddr() string {
 	return "127.0.0.1:9090"
 }
 
-// TLSEnabled returns true if TLS cert files are configured or auto-cert is enabled.
+// TLSEnabled returns true if the TLS environment will actually engage the
+// server transport: a cert/key pair, or auto-cert. A lone EIPC_TLS_CERT
+// without EIPC_TLS_KEY does not engage TLS (SetupTLSFromEnv rejects a
+// half-configured pair), so it must not report enabled here either —
+// reporting it enabled is what let the server log [TLS] on a plaintext
+// socket.
 func TLSEnabled() bool {
-	return os.Getenv("EIPC_TLS_CERT") != "" || os.Getenv("EIPC_TLS_AUTO_CERT") == "true"
+	cert, key := os.Getenv("EIPC_TLS_CERT"), os.Getenv("EIPC_TLS_KEY")
+	return (cert != "" && key != "") || os.Getenv("EIPC_TLS_AUTO_CERT") == "true"
 }

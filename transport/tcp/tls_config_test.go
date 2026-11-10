@@ -149,6 +149,81 @@ func TestLoadTLSConfigBadCA(t *testing.T) {
 	}
 }
 
+func TestLoadClientTLSConfigCAOnly(t *testing.T) {
+	dir := t.TempDir()
+	certFile, _ := writeCertKeyFiles(t, dir)
+	cfg, err := LoadClientTLSConfig(certFile, "", "")
+	if err != nil {
+		t.Fatalf("LoadClientTLSConfig: %v", err)
+	}
+	if cfg.RootCAs == nil {
+		t.Error("RootCAs: got nil, want a pool from the CA file")
+	}
+	if cfg.MinVersion != tls.VersionTLS12 {
+		t.Errorf("MinVersion: got %x, want TLS 1.2 (%x)", cfg.MinVersion, tls.VersionTLS12)
+	}
+	if cfg.InsecureSkipVerify {
+		t.Error("InsecureSkipVerify: got true, want false — verification is always on")
+	}
+	if len(cfg.Certificates) != 0 {
+		t.Errorf("Certificates: got %d, want 0 without a client cert/key pair", len(cfg.Certificates))
+	}
+}
+
+func TestLoadClientTLSConfigSystemRoots(t *testing.T) {
+	// No CA file means "verify against the system roots": still a
+	// verifying config, never a skipped one.
+	cfg, err := LoadClientTLSConfig("", "", "")
+	if err != nil {
+		t.Fatalf("LoadClientTLSConfig: %v", err)
+	}
+	if cfg.RootCAs != nil {
+		t.Error("RootCAs: got non-nil pool, want nil (system roots) with no CA file")
+	}
+	if cfg.InsecureSkipVerify {
+		t.Error("InsecureSkipVerify: got true, want false — verification is always on")
+	}
+}
+
+func TestLoadClientTLSConfigWithClientCert(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := writeCertKeyFiles(t, dir)
+	cfg, err := LoadClientTLSConfig(certFile, certFile, keyFile)
+	if err != nil {
+		t.Fatalf("LoadClientTLSConfig: %v", err)
+	}
+	if len(cfg.Certificates) != 1 {
+		t.Errorf("Certificates: got %d, want 1 with a client cert/key pair", len(cfg.Certificates))
+	}
+	if cfg.RootCAs == nil {
+		t.Error("RootCAs: got nil, want a pool from the CA file")
+	}
+}
+
+func TestLoadClientTLSConfigErrors(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := writeCertKeyFiles(t, dir)
+
+	if _, err := LoadClientTLSConfig(filepath.Join(dir, "missing-ca.pem"), "", ""); err == nil {
+		t.Error("LoadClientTLSConfig with missing CA file: got nil error, want error")
+	}
+
+	badCA := filepath.Join(dir, "bad-ca.pem")
+	if err := os.WriteFile(badCA, []byte("this is not a PEM certificate\n"), 0o600); err != nil {
+		t.Fatalf("write bad CA: %v", err)
+	}
+	if _, err := LoadClientTLSConfig(badCA, "", ""); err == nil {
+		t.Error("LoadClientTLSConfig with unparseable CA PEM: got nil error, want error")
+	}
+
+	if _, err := LoadClientTLSConfig("", certFile, ""); err == nil {
+		t.Error("LoadClientTLSConfig with client cert but no key: got nil error, want error")
+	}
+	if _, err := LoadClientTLSConfig("", "", keyFile); err == nil {
+		t.Error("LoadClientTLSConfig with client key but no cert: got nil error, want error")
+	}
+}
+
 func TestAutoTLSConfig(t *testing.T) {
 	// Pinned behaviour at HEAD: AutoTLSConfig's doc comment says it is
 	// "Controlled by EIPC_TLS_AUTO_CERT env var", but the implementation

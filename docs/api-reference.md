@@ -516,4 +516,4 @@ Environment variable configuration loader.
 | `LoadSessionTTL()` | `EIPC_SESSION_TTL` | `1h` | Session lifetime |
 | `LoadMaxConnections()` | `EIPC_MAX_CONNECTIONS` | `64` | Max concurrent connections |
 | `LoadListenAddr()` | `EIPC_LISTEN_ADDR` | `127.0.0.1:9090` | Server listen address |
-| `TLSEnabled()` | `EIPC_TLS_CERT` or `EIPC_TLS_AUTO_CERT` | `false` | TLS mode check |
+| `TLSEnabled()` | `EIPC_TLS_CERT` + `EIPC_TLS_KEY`, or `EIPC_TLS_AUTO_CERT` | `false` | TLS mode check (true only when TLS will actually engage) |

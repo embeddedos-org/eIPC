@@ -36,9 +36,17 @@ func main() {
 	log.Printf("EIPC client connecting to %s as %s", addr, serviceID)
 
 	tcpTransport := tcp.New()
-	if err := tcpTransport.SetupTLSFromEnv(); err != nil {
+	if err := tcpTransport.SetupClientTLSFromEnv(); err != nil {
 		log.Fatalf("TLS setup: %v", err)
 	}
+
+	// The mode is read off the transport, not the environment: with no
+	// CA configured the dial is plaintext, and the log must say so.
+	tlsMode := "plaintext"
+	if tcpTransport.TLSEnabled() {
+		tlsMode = "TLS (verified)"
+	}
+	log.Printf("transport: %s", tlsMode)
 
 	conn, err := tcpTransport.Dial(addr)
 	if err != nil {
@@ -224,7 +232,7 @@ func main() {
 	fmt.Println()
 	fmt.Println("=== EIPC Demo Complete (Hardened) ===")
 	fmt.Println("End-to-end flow demonstrated:")
-	fmt.Println("  1. Client connected to server (TLS if configured)")
+	fmt.Printf("  1. Client connected to server (%s)\n", tlsMode)
 	fmt.Println("  2. Server sent challenge nonce")
 	fmt.Println("  3. Client proved secret via HMAC-SHA256 response")
 	fmt.Println("  4. Server validated & issued session token")
