@@ -6,7 +6,7 @@ Thank you for your interest in contributing to the IPC Protocol!
 
 | Requirement | Version | Purpose |
 |---|---|---|
-| Go | 1.21+ | Core EIPC build and tests |
+| Go | 1.26.10+ (the `go` line in `go.mod`) | Core EIPC build and tests |
 | CMake | 3.15+ | C SDK build |
 | C compiler | C11 | C SDK (gcc, clang, or MSVC) |
 
