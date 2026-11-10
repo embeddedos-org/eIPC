@@ -46,7 +46,7 @@ Observed in the source tree:
 
 ## Requirements
 
-- Go 1.22+
+- Go 1.26.10 or newer (the `go` line in `go.mod` sets this minimum)
 
 ## Build
 

@@ -4,7 +4,7 @@ A minimal working example of an EIPC server and client.
 
 ## Prerequisites
 
-- Go 1.22+
+- Go 1.26.10 or newer (the `go` line in `go.mod` sets this minimum)
 
 ## Run
 
