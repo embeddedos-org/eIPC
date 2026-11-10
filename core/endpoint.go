@@ -44,6 +44,13 @@ func NewClientEndpoint(conn transport.Connection, codec protocol.Codec, hmacKey 
 func (e *ClientEndpoint) Send(msg Message) error {
 	seq := e.sequence.Add(1)
 
+	// Stamp the endpoint's session token when the message carries none,
+	// so the server can bind the message to this authenticated session.
+	// An explicitly set SessionID is left untouched.
+	if msg.SessionID == "" {
+		msg.SessionID = e.sessionID
+	}
+
 	hdr := protocol.Header{
 		ServiceID:     msg.Source,
 		SessionID:     msg.SessionID,
@@ -118,6 +125,8 @@ type ServerEndpoint struct {
 	sendMu           sync.Mutex
 	seq              atomic.Uint64
 	peerCapabilities []string
+	peerMu           sync.RWMutex
+	peer             *AuthenticatedPeer
 }
 
 // SetPeerCapabilities sets the authenticated peer's capability list.
@@ -127,6 +136,48 @@ func (e *ServerEndpoint) SetPeerCapabilities(caps []string) {
 	cpy := make([]string, len(caps))
 	copy(cpy, caps)
 	e.peerCapabilities = cpy
+}
+
+// BindPeer binds the authenticated peer to this connection. Once bound,
+// Receive rejects any message whose Source or SessionID does not match
+// the peer, so a peer cannot impersonate another service on this
+// connection. Binding also sets the peer's capabilities for
+// ValidateCapability. Pass nil to clear the binding.
+func (e *ServerEndpoint) BindPeer(peer *AuthenticatedPeer) {
+	e.peerMu.Lock()
+	if peer == nil {
+		e.peer = nil
+	} else {
+		cpy := *peer
+		caps := make([]string, len(peer.Capabilities))
+		copy(caps, peer.Capabilities)
+		cpy.Capabilities = caps
+		e.peer = &cpy
+	}
+	e.peerMu.Unlock()
+	e.SetPeerCapabilities(peerCapabilitiesOf(peer))
+}
+
+func peerCapabilitiesOf(peer *AuthenticatedPeer) []string {
+	if peer == nil {
+		return nil
+	}
+	return peer.Capabilities
+}
+
+// BoundPeer returns a copy of the peer bound to this connection, or nil
+// when no peer is bound.
+func (e *ServerEndpoint) BoundPeer() *AuthenticatedPeer {
+	e.peerMu.RLock()
+	defer e.peerMu.RUnlock()
+	if e.peer == nil {
+		return nil
+	}
+	cpy := *e.peer
+	caps := make([]string, len(e.peer.Capabilities))
+	copy(caps, e.peer.Capabilities)
+	cpy.Capabilities = caps
+	return &cpy
 }
 
 // ValidateCapability checks if msgCap is in the peer's granted capabilities.
@@ -232,7 +283,7 @@ func (e *ServerEndpoint) Receive() (Message, error) {
 		ts = t
 	}
 
-	return Message{
+	msg := Message{
 		Version:    frame.Version,
 		Type:       msgTypeFromByte(frame.MsgType),
 		Source:     hdr.ServiceID,
@@ -242,7 +293,20 @@ func (e *ServerEndpoint) Receive() (Message, error) {
 		Priority:   Priority(hdr.Priority),
 		Capability: hdr.Capability,
 		Payload:    frame.Payload,
-	}, nil
+	}
+
+	// Identity binding (PR-EIPC-2): once a peer is bound to this
+	// connection, only messages genuinely from that peer are accepted.
+	// A forged Source or a session token from another session is
+	// rejected here, before dispatch. Capability is deliberately not
+	// checked here: the server loop enforces it with an error ack and
+	// keeps the connection up, while an identity forgery drops it.
+	// Unbound endpoints (e.g. during the auth handshake) are unaffected.
+	if err := e.BoundPeer().ValidateIdentity(msg); err != nil {
+		return Message{}, err
+	}
+
+	return msg, nil
 }
 
 func (e *ServerEndpoint) Close() error {
