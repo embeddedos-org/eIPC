@@ -139,15 +139,25 @@ func TestLoadListenAddr_Custom(t *testing.T) {
 
 func TestTLSEnabled(t *testing.T) {
 	os.Unsetenv("EIPC_TLS_CERT")
+	os.Unsetenv("EIPC_TLS_KEY")
 	os.Unsetenv("EIPC_TLS_AUTO_CERT")
 	if TLSEnabled() {
 		t.Error("TLS should be disabled by default")
 	}
 
+	// A lone cert without its key does not engage TLS: SetupTLSFromEnv
+	// rejects the half-configured pair, so the predicate must not
+	// report enabled either — that was the [TLS]-on-plaintext lie.
 	os.Setenv("EIPC_TLS_CERT", "/path/to/cert.pem")
 	defer os.Unsetenv("EIPC_TLS_CERT")
+	if TLSEnabled() {
+		t.Error("TLS should be disabled with EIPC_TLS_CERT set but no EIPC_TLS_KEY")
+	}
+
+	os.Setenv("EIPC_TLS_KEY", "/path/to/key.pem")
+	defer os.Unsetenv("EIPC_TLS_KEY")
 	if !TLSEnabled() {
-		t.Error("TLS should be enabled with EIPC_TLS_CERT set")
+		t.Error("TLS should be enabled with EIPC_TLS_CERT and EIPC_TLS_KEY set")
 	}
 }
 

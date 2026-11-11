@@ -295,7 +295,7 @@ func main() {
 	defer tcpTransport.Close()
 
 	tlsMode := "plaintext"
-	if config.TLSEnabled() {
+	if tcpTransport.TLSEnabled() {
 		tlsMode = "TLS"
 	}
 	log.Printf("EIPC server listening on %s [%s] (max_conns=%d, session_ttl=%s)",
