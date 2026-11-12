@@ -24,6 +24,11 @@ import (
 	"github.com/embeddedos-org/eipc/transport/tcp"
 )
 
+// postAuthIdleTimeout bounds how long an authenticated peer may stay
+// silent before the server drops its connection: without it, idle
+// connections hold a slot under the connection cap indefinitely.
+const postAuthIdleTimeout = 5 * time.Minute
+
 func main() {
 	addr := config.LoadListenAddr()
 	if len(os.Args) > 1 {
@@ -537,8 +542,11 @@ func handleConnection(
 
 	close(authDone) // Auth completed successfully
 
-	log.Printf("[AUTH] ACCEPTED: service=%s token=%s...%s caps=%v",
-		peer.ServiceID, peer.SessionToken[:8], peer.SessionToken[len(peer.SessionToken)-8:], peer.Capabilities)
+	// The session token is a credential: log only that auth succeeded
+	// and which capabilities were granted, never any part of the token
+	// itself. The old line printed the token's first and last eight
+	// hex characters into the log.
+	log.Printf("[AUTH] ACCEPTED: service=%s caps=%v", peer.ServiceID, peer.Capabilities)
 
 	if err := auditLogger.Log(audit.Entry{
 		RequestID: authMsg.RequestID,
@@ -584,8 +592,16 @@ func handleConnection(
 		return
 	}
 
-	// Message loop with idle timeout and capability enforcement
+	// Message loop with idle timeout and capability enforcement: the
+	// read deadline is re-armed before every Receive, so an
+	// authenticated peer that goes silent is dropped after
+	// postAuthIdleTimeout instead of holding its connection slot
+	// indefinitely.
 	for {
+		if err := endpoint.SetReadDeadline(time.Now().Add(postAuthIdleTimeout)); err != nil {
+			log.Printf("[CONN] failed to arm read deadline: %v", err)
+			return
+		}
 		msg, err := endpoint.Receive()
 		if err != nil {
 			log.Printf("[CONN] connection closed: %v", err)
