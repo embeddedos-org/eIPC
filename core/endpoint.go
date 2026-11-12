@@ -313,6 +313,14 @@ func (e *ServerEndpoint) Close() error {
 	return e.conn.Close()
 }
 
+// SetReadDeadline arms a read deadline on the underlying connection: the
+// next Receive fails once the deadline passes. The server's post-auth
+// loop re-arms it before every Receive, so an idle authenticated peer is
+// dropped instead of holding its connection slot indefinitely.
+func (e *ServerEndpoint) SetReadDeadline(deadline time.Time) error {
+	return e.conn.SetReadDeadline(deadline)
+}
+
 // RemoteAddr returns the remote address of the underlying connection.
 func (e *ServerEndpoint) RemoteAddr() string {
 	return e.conn.RemoteAddr()

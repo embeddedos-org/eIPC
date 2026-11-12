@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/embeddedos-org/eipc/protocol"
 	"github.com/embeddedos-org/eipc/transport"
@@ -197,6 +198,13 @@ func (c *Connection) Receive() (*protocol.Frame, error) {
 }
 
 func (c *Connection) Close() error {
+	return nil
+}
+
+// SetReadDeadline is a no-op: the ring buffer is in-process memory with
+// no socket to arm a deadline on. It exists so *Connection satisfies the
+// transport.Connection interface.
+func (c *Connection) SetReadDeadline(deadline time.Time) error {
 	return nil
 }
 
