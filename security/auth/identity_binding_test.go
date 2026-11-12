@@ -10,14 +10,12 @@ import (
 )
 
 func TestPeerIdentityBoundPeer_RoundTrip(t *testing.T) {
-	authenticator := NewAuthenticator([]byte("test-key-32-bytes-long-enough!!"), map[string][]string{
+	secret := []byte("test-key-32-bytes-long-enough!!")
+	authenticator := NewAuthenticator(secret, map[string][]string{
 		"ebot.client": {"ai:chat"},
 	})
 
-	peer, err := authenticator.Authenticate("ebot.client")
-	if err != nil {
-		t.Fatalf("Authenticate: %v", err)
-	}
+	peer := challengeAuth(t, authenticator, secret, "ebot.client")
 
 	bound := peer.BoundPeer()
 	if bound == nil {

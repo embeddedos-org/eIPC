@@ -47,7 +47,14 @@ type Authenticator struct {
 	activeSessions    map[string]*PeerIdentity
 	pendingChallenges map[string]*Challenge // serviceID → pending challenge
 	sessionTTL        time.Duration
+	challengeTTL      time.Duration
+	allowLegacyAuth   bool
 }
+
+// DefaultChallengeTTL bounds how long a challenge-response round trip may
+// take. A challenge older than this is rejected, so a captured nonce
+// cannot be answered later.
+const DefaultChallengeTTL = 5 * time.Minute
 
 // NewAuthenticator creates an authenticator with the given shared secret.
 // knownServices maps service IDs to their allowed capability sets.
@@ -64,6 +71,7 @@ func NewAuthenticator(sharedSecret []byte, knownServices map[string][]string) *A
 		activeSessions:    make(map[string]*PeerIdentity),
 		pendingChallenges: make(map[string]*Challenge),
 		sessionTTL:        1 * time.Hour,
+		challengeTTL:      DefaultChallengeTTL,
 	}
 }
 
@@ -72,6 +80,25 @@ func (a *Authenticator) SetSessionTTL(ttl time.Duration) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.sessionTTL = ttl
+}
+
+// SetChallengeTTL configures how long a challenge stays valid for
+// VerifyResponse. A zero or negative TTL disables expiry checking; the
+// default is DefaultChallengeTTL.
+func (a *Authenticator) SetChallengeTTL(ttl time.Duration) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.challengeTTL = ttl
+}
+
+// SetAllowLegacyAuth opts in to the legacy no-secret Authenticate path.
+// It is off by default: Authenticate issues a session token on a service
+// ID alone, with no proof of the shared secret. Enable it only while
+// migrating an existing consumer to CreateChallenge/VerifyResponse.
+func (a *Authenticator) SetAllowLegacyAuth(enabled bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.allowLegacyAuth = enabled
 }
 
 // CreateChallenge generates a 32-byte nonce challenge for the given service ID.
@@ -110,6 +137,13 @@ func (a *Authenticator) VerifyResponse(serviceID string, response []byte) (*Peer
 	}
 	delete(a.pendingChallenges, serviceID)
 
+	// Challenges are one-shot (deleted above before verifying) and
+	// time-bound: an old challenge is rejected even with a correct
+	// response, so a captured nonce cannot be answered later.
+	if a.challengeTTL > 0 && time.Since(challenge.CreatedAt) > a.challengeTTL {
+		return nil, fmt.Errorf("%w: challenge expired for %q", core.ErrAuth, serviceID)
+	}
+
 	// Compute expected response: HMAC-SHA256(sharedSecret, nonce)
 	mac := hmac.New(sha256.New, a.sharedSecret)
 	mac.Write(challenge.Nonce)
@@ -140,10 +174,21 @@ func (a *Authenticator) VerifyResponse(serviceID string, response []byte) (*Peer
 }
 
 // Authenticate validates a peer's service ID and returns a PeerIdentity
-// with a fresh session token. (Legacy simple auth, kept for backward compat.)
+// with a fresh session token.
+//
+// Legacy no-secret auth, kept only for migration: it issues a session on
+// a service ID alone, with no proof of the shared secret, so anyone who
+// knows (or guesses) a service ID can impersonate it. It is DISABLED by
+// default and must be opted into per authenticator with
+// SetAllowLegacyAuth(true). New consumers must use
+// CreateChallenge/VerifyResponse.
 func (a *Authenticator) Authenticate(serviceID string) (*PeerIdentity, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	if !a.allowLegacyAuth {
+		return nil, fmt.Errorf("%w: legacy no-secret authentication is disabled for %q; use CreateChallenge/VerifyResponse", core.ErrAuth, serviceID)
+	}
 
 	capsSrc, ok := a.knownServices[serviceID]
 	if !ok {

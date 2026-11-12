@@ -117,10 +117,7 @@ func TestSessionTTL(t *testing.T) {
 	})
 	authenticator.SetSessionTTL(100 * time.Millisecond)
 
-	peer, err := authenticator.Authenticate("test.client")
-	if err != nil {
-		t.Fatalf("Authenticate: %v", err)
-	}
+	peer := challengeAuth(t, authenticator, []byte(testSecret), "test.client")
 
 	if peer.IsExpired() {
 		t.Error("peer should not be expired immediately")
