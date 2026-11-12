@@ -78,6 +78,47 @@ func TestRouterBatchPriorityOrder(t *testing.T) {
 	}
 }
 
+// Messages that share a priority lane must reach their handlers in the
+// order they were submitted. container/heap is not stable, so with Less
+// comparing priority alone the P1 messages below ran as p1-e, p1-d, p1-a,
+// p1-c, p1-b.
+func TestRouterBatchKeepsOrderWithinPriority(t *testing.T) {
+	r := NewRouter()
+
+	var order []string
+	r.Handle(TypeIntent, func(msg Message) (*Message, error) {
+		order = append(order, msg.RequestID)
+		return nil, nil
+	})
+
+	messages := []Message{
+		{Type: TypeIntent, Priority: PriorityP1, RequestID: "p1-a"},
+		{Type: TypeIntent, Priority: PriorityP2, RequestID: "p2-a"},
+		{Type: TypeIntent, Priority: PriorityP1, RequestID: "p1-b"},
+		{Type: TypeIntent, Priority: PriorityP0, RequestID: "p0-a"},
+		{Type: TypeIntent, Priority: PriorityP1, RequestID: "p1-c"},
+		{Type: TypeIntent, Priority: PriorityP2, RequestID: "p2-b"},
+		{Type: TypeIntent, Priority: PriorityP1, RequestID: "p1-d"},
+		{Type: TypeIntent, Priority: PriorityP0, RequestID: "p0-b"},
+		{Type: TypeIntent, Priority: PriorityP1, RequestID: "p1-e"},
+	}
+
+	results := r.DispatchBatch(messages)
+	if len(results) != len(messages) {
+		t.Fatalf("expected %d results, got %d", len(messages), len(results))
+	}
+
+	want := []string{"p0-a", "p0-b", "p1-a", "p1-b", "p1-c", "p1-d", "p1-e", "p2-a", "p2-b"}
+	if len(order) != len(want) {
+		t.Fatalf("expected %d dispatches, got %d: %v", len(want), len(order), order)
+	}
+	for i := range want {
+		if order[i] != want[i] {
+			t.Fatalf("dispatch order = %v, want %v", order, want)
+		}
+	}
+}
+
 func TestRouterMultipleHandlers(t *testing.T) {
 	r := NewRouter()
 

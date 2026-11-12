@@ -60,6 +60,8 @@ func (r *Router) DispatchFor(msg Message, peer *AuthenticatedPeer) (*Message, er
 }
 
 // DispatchBatch processes a batch of messages in priority order (P0 first).
+// Messages with the same priority are dispatched in the order they appear
+// in the batch.
 func (r *Router) DispatchBatch(messages []Message) []DispatchResult {
 	return r.dispatchBatch(messages, r.Dispatch)
 }
@@ -106,8 +108,14 @@ type priorityQueue []*priorityItem
 
 func (pq priorityQueue) Len() int { return len(pq) }
 
+// Less orders by priority (lower value = higher priority), then by position
+// in the batch. container/heap is not stable, so without the second key
+// messages that share a priority lane come out in an arbitrary order.
 func (pq priorityQueue) Less(i, j int) bool {
-	return pq[i].msg.Priority < pq[j].msg.Priority // lower value = higher priority
+	if pq[i].msg.Priority != pq[j].msg.Priority {
+		return pq[i].msg.Priority < pq[j].msg.Priority
+	}
+	return pq[i].index < pq[j].index
 }
 
 func (pq priorityQueue) Swap(i, j int) {
