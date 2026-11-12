@@ -15,59 +15,147 @@
 
 /* ---------- JSON Parse Helpers ---------- */
 
+#define JSON_BAD_HEX 0xFFFFFFFFu
+
+/* The value of four hex digits at p, or JSON_BAD_HEX. */
+static uint32_t json_hex4(const char *p) {
+    uint32_t v = 0;
+    int i;
+    for (i = 0; i < 4; i++) {
+        char c = p[i];
+        v <<= 4;
+        if (c >= '0' && c <= '9')
+            v |= (uint32_t)(c - '0');
+        else if (c >= 'a' && c <= 'f')
+            v |= (uint32_t)(c - 'a' + 10);
+        else if (c >= 'A' && c <= 'F')
+            v |= (uint32_t)(c - 'A' + 10);
+        else
+            return JSON_BAD_HEX;
+    }
+    return v;
+}
+
+/* Write code point cp as UTF-8 into out (room for 4 bytes); return the length. */
+static size_t json_utf8(uint32_t cp, char *out) {
+    if (cp < 0x80) {
+        out[0] = (char)cp;
+        return 1;
+    }
+    if (cp < 0x800) {
+        out[0] = (char)(0xC0 | (cp >> 6));
+        out[1] = (char)(0x80 | (cp & 0x3F));
+        return 2;
+    }
+    if (cp < 0x10000) {
+        out[0] = (char)(0xE0 | (cp >> 12));
+        out[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        out[2] = (char)(0x80 | (cp & 0x3F));
+        return 3;
+    }
+    out[0] = (char)(0xF0 | (cp >> 18));
+    out[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+    out[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+    out[3] = (char)(0x80 | (cp & 0x3F));
+    return 4;
+}
+
+/* The start of the value for key, or NULL. Only a "key" followed by a colon
+ * is a key: strstr() alone also matched the same text as a string value, so
+ * in {"status":"error","error":"disk full"} the lookup for "error" landed on
+ * the status value and returned nothing. */
+static const char *json_find_value(const char *json, const char *key) {
+    char pattern[128];
+    const char *p = json;
+    size_t plen;
+
+    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+    plen = strlen(pattern);
+    while ((p = strstr(p, pattern)) != NULL) {
+        const char *v = p + plen;
+        while (*v == ' ' || *v == '\t' || *v == '\n' || *v == '\r')
+            v++;
+        if (*v == ':') {
+            v++;
+            while (*v == ' ' || *v == '\t' || *v == '\n' || *v == '\r')
+                v++;
+            return v;
+        }
+        p += plen;
+    }
+    return NULL;
+}
+
 static int json_find_string(const char *json, const char *key,
                             char *out, size_t out_size) {
-    char pattern[128];
     const char *start, *end;
     size_t len;
 
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    start = strstr(json, pattern);
-    if (!start) {
-        out[0] = '\0';
-        return -1;
-    }
-
-    start += strlen(pattern);
-    while (*start == ' ' || *start == ':' || *start == '\t' || *start == '\n')
-        start++;
-
-    if (*start != '"') {
+    start = json_find_value(json, key);
+    if (!start || *start != '"') {
         out[0] = '\0';
         return -1;
     }
     start++;
 
+    /* Decode the escapes as the value is copied: the encoders write \" \\
+     * \n \r \t (json_escape), and other JSON encoders also write \/ \b \f
+     * and \uXXXX (Go's encoding/json writes < > & as \u003c \u003e
+     * \u0026). A value longer than out_size - 1 bytes is truncated as
+     * before; a decoded \uXXXX is never cut in half. */
+    len = 0;
     end = start;
     while (*end && *end != '"') {
-        if (*end == '\\' && *(end + 1))
+        char enc[4];
+        size_t n = 1;
+
+        if (*end != '\\') {
+            enc[0] = *end++;
+        } else if (end[1] == 'u') {
+            uint32_t cp = json_hex4(end + 2);
+            end += (cp == JSON_BAD_HEX) ? 2 : 6;
+            if (cp >= 0xD800 && cp <= 0xDBFF && end[0] == '\\' && end[1] == 'u') {
+                uint32_t lo = json_hex4(end + 2);
+                if (lo >= 0xDC00 && lo <= 0xDFFF) {
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
+                    end += 6;
+                }
+            }
+            /* A NUL would cut the C string short, so \u0000 becomes
+             * U+FFFD, like a malformed escape or an unpaired surrogate. */
+            if (cp == 0 || cp == JSON_BAD_HEX || (cp >= 0xD800 && cp <= 0xDFFF))
+                cp = 0xFFFD;
+            n = json_utf8(cp, enc);
+        } else if (end[1]) {
+            switch (end[1]) {
+                case 'b': enc[0] = '\b'; break;
+                case 'f': enc[0] = '\f'; break;
+                case 'n': enc[0] = '\n'; break;
+                case 'r': enc[0] = '\r'; break;
+                case 't': enc[0] = '\t'; break;
+                default:  enc[0] = end[1]; break; /* \" \\ \/ */
+            }
             end += 2;
-        else
-            end++;
+        } else {
+            break; /* a lone backslash at the end of the input */
+        }
+
+        if (len + n >= out_size)
+            break;
+        memcpy(out + len, enc, n);
+        len += n;
     }
 
-    len = (size_t)(end - start);
-    if (len >= out_size)
-        len = out_size - 1;
-    memcpy(out, start, len);
     out[len] = '\0';
     return 0;
 }
 
 static int json_find_uint64(const char *json, const char *key, uint64_t *out) {
-    char pattern[128];
-    const char *start;
-
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    start = strstr(json, pattern);
+    const char *start = json_find_value(json, key);
     if (!start) {
         *out = 0;
         return -1;
     }
-
-    start += strlen(pattern);
-    while (*start == ' ' || *start == ':' || *start == '\t' || *start == '\n')
-        start++;
 
     if (*start == '"')
         start++;
@@ -86,19 +174,11 @@ static int json_find_int(const char *json, const char *key, int *out) {
 }
 
 static int json_find_float(const char *json, const char *key, float *out) {
-    char pattern[128];
-    const char *start;
-
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    start = strstr(json, pattern);
+    const char *start = json_find_value(json, key);
     if (!start) {
         *out = 0.0f;
         return -1;
     }
-
-    start += strlen(pattern);
-    while (*start == ' ' || *start == ':' || *start == '\t' || *start == '\n')
-        start++;
 
     if (*start == '"')
         start++;
