@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/embeddedos-org/eipc/protocol"
 )
@@ -32,6 +33,11 @@ type Connection interface {
 	Receive() (*protocol.Frame, error)
 	// RemoteAddr returns the remote address of the connection.
 	RemoteAddr() string
+	// SetReadDeadline sets an absolute deadline for the next Receive;
+	// a receive running past it fails with a timeout error. A zero time
+	// clears the deadline. Transports without a socket (in-process
+	// shared memory) accept the call and ignore it.
+	SetReadDeadline(deadline time.Time) error
 	// Close shuts down the connection.
 	Close() error
 }
@@ -92,6 +98,13 @@ func (c *ConnWrapper) Receive() (*protocol.Frame, error) {
 // RemoteAddr returns the remote address string.
 func (c *ConnWrapper) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
+}
+
+// SetReadDeadline sets the read deadline on the underlying connection.
+// A receive that runs past the deadline fails, so an idle or stalled
+// peer cannot hold a server connection slot forever.
+func (c *ConnWrapper) SetReadDeadline(deadline time.Time) error {
+	return c.conn.SetReadDeadline(deadline)
 }
 
 // Close closes the underlying connection.

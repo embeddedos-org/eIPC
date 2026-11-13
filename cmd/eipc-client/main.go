@@ -158,12 +158,12 @@ func main() {
 	}
 
 	sessionToken := authRes.SessionToken
-	if len(sessionToken) >= 16 {
-		log.Printf("[3] Authenticated! token=%s...%s caps=%v",
-			sessionToken[:8], sessionToken[len(sessionToken)-8:], authRes.Capabilities)
-	} else {
-		log.Printf("[3] Authenticated! token=%s caps=%v", sessionToken, authRes.Capabilities)
-	}
+	// The session token is a credential: log only that auth succeeded
+	// and which capabilities were granted, never any part of the token
+	// itself. The old lines printed the token's first and last eight
+	// hex characters (long-token branch) and the whole token
+	// (short-token branch) into the log.
+	log.Printf("[3] Authenticated! caps=%v", authRes.Capabilities)
 
 	// Step 5: Send HMAC-protected intent
 	log.Println("[4] Sending intent: move_left (confidence=0.91)")

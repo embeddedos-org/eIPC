@@ -41,14 +41,12 @@ func TestWrongSecret_Rejection(t *testing.T) {
 }
 
 func TestCapabilityViolation(t *testing.T) {
-	authenticator := auth.NewAuthenticator([]byte("test-key-32-bytes-long-enough!!"), map[string][]string{
+	secret := []byte("test-key-32-bytes-long-enough!!")
+	authenticator := auth.NewAuthenticator(secret, map[string][]string{
 		"ebot.client": {"ai:chat"},
 	})
 
-	peer, err := authenticator.Authenticate("ebot.client")
-	if err != nil {
-		t.Fatalf("Authenticate: %v", err)
-	}
+	peer := challengeAuth(t, authenticator, secret, "ebot.client")
 
 	hasUIControl := false
 	for _, cap := range peer.Capabilities {
@@ -98,17 +96,15 @@ func TestConnectionLimitEnforcement(t *testing.T) {
 }
 
 func TestSessionTTLExpiry(t *testing.T) {
-	authenticator := auth.NewAuthenticator([]byte("test-secret-key-32-bytes-long!!"), map[string][]string{
+	secret := []byte("test-secret-key-32-bytes-long!!")
+	authenticator := auth.NewAuthenticator(secret, map[string][]string{
 		"test.client": {"ui:control"},
 	})
 	authenticator.SetSessionTTL(50 * time.Millisecond)
 
-	peer, err := authenticator.Authenticate("test.client")
-	if err != nil {
-		t.Fatalf("Authenticate: %v", err)
-	}
+	peer := challengeAuth(t, authenticator, secret, "test.client")
 
-	_, err = authenticator.ValidateSession(peer.SessionToken)
+	_, err := authenticator.ValidateSession(peer.SessionToken)
 	if err != nil {
 		t.Fatalf("session should be valid immediately: %v", err)
 	}
@@ -118,6 +114,19 @@ func TestSessionTTLExpiry(t *testing.T) {
 	_, err = authenticator.ValidateSession(peer.SessionToken)
 	if err == nil {
 		t.Fatal("session should be expired after TTL")
+	}
+}
+
+func TestLegacyAuthenticateRefusedByDefault(t *testing.T) {
+	authenticator := auth.NewAuthenticator([]byte("test-secret-key-32-bytes-long!!"), map[string][]string{
+		"test.client": {"ui:control"},
+	})
+
+	// The legacy no-secret path is disabled by default: a service ID
+	// alone must never yield a session.
+	_, err := authenticator.Authenticate("test.client")
+	if err == nil {
+		t.Fatal("expected legacy Authenticate to be refused by default")
 	}
 }
 
