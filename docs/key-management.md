@@ -63,6 +63,10 @@ export EIPC_HMAC_KEY="$(openssl rand -hex 32)"  # fallback until migration compl
    key fails to start with an explicit error instead of silently
    running unsecured.
 
+   Upgrade server and client together: a key file's trailing newline is
+   stripped on load, so the effective key changes when either side
+   upgrades — a mixed-version fleet will fail HMAC verification.
+
 ---
 
 ## 1. Key Generation
@@ -108,7 +112,7 @@ go run -e 'import "crypto/rand"; import "encoding/hex"; import "fmt"; b := make(
 ### Environment Variables (Development)
 
 ```bash
-export EIPC_HMAC_KEY="your-32-byte-hex-key-here"
+export EIPC_HMAC_KEY="your-32-byte-hex-key-here-0000000"
 ```
 
 **Pros**: Simple, no file I/O.

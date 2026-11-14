@@ -103,8 +103,9 @@ Where preamble is the 16-byte fixed header:
 - **Always-on by default**: Both `ClientEndpoint` and `ServerEndpoint` always set `FlagHMAC`
 - **Per-service keys**: Each service can have its own key
   (`EIPC_HMAC_KEY_<SERVICE>` / `EIPC_KEY_FILE_<SERVICE>`, loaded by
-  `config.LoadHMACKeyForService`), so a leak of one service's key does
-  not compromise the others. The single global key
+  `config.LoadHMACKeyForService`), so once the endpoints are wired to
+  per-service keys, a leak of one service's key will not compromise
+  the others. The single global key
   (`EIPC_HMAC_KEY` / `EIPC_KEY_FILE`) remains only as a fallback until
   the endpoints are wired to per-service keys; see the migration note
   in [Key Management Guide](key-management.md).

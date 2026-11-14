@@ -247,6 +247,25 @@ func TestLoadHMACKeyForService_ShortPerServiceKeyRejected(t *testing.T) {
 	}
 }
 
+// A short per-service key supplied via file must fail the same way as
+// one supplied via env var — no silent fallback to the global key.
+func TestLoadHMACKeyForService_ShortPerServiceFileKeyRejected(t *testing.T) {
+	unsetKeyEnv(t)
+	os.Setenv("EIPC_HMAC_KEY", "global-key-that-is-32-bytes-long!")
+	defer os.Unsetenv("EIPC_HMAC_KEY")
+
+	tmpFile := filepath.Join(t.TempDir(), "eipc-server.key")
+	_ = os.WriteFile(tmpFile, []byte("short"), 0600)
+
+	os.Setenv("EIPC_KEY_FILE_EIPC_SERVER", tmpFile)
+	defer os.Unsetenv("EIPC_KEY_FILE_EIPC_SERVER")
+
+	_, err := LoadHMACKeyForService("eipc-server")
+	if err == nil {
+		t.Fatal("expected error for a short per-service file key")
+	}
+}
+
 func TestLoadHMACKeyForService_InvalidServiceName(t *testing.T) {
 	unsetKeyEnv(t)
 
