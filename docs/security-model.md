@@ -101,6 +101,17 @@ Where preamble is the 16-byte fixed header:
 - **Constant-time comparison**: Prevents timing side-channel attacks
 - **Covers entire frame**: Magic, version, type, flags, header, and payload are all signed
 - **Always-on by default**: Both `ClientEndpoint` and `ServerEndpoint` always set `FlagHMAC`
+- **Per-service keys**: Each service can have its own key
+  (`EIPC_HMAC_KEY_<SERVICE>` / `EIPC_KEY_FILE_<SERVICE>`, loaded by
+  `config.LoadHMACKeyForService`), so a leak of one service's key does
+  not compromise the others. The single global key
+  (`EIPC_HMAC_KEY` / `EIPC_KEY_FILE`) remains only as a fallback until
+  the endpoints are wired to per-service keys; see the migration note
+  in [Key Management Guide](key-management.md).
+- **Minimum key length**: Keys shorter than 32 bytes are rejected at
+  load time by `config.LoadHMACKey` / `config.LoadHMACKeyForService`
+  (`MinHMACKeyLength`), so a weak key fails startup instead of
+  silently weakening every frame's MAC.
 
 ### Fail-closed on secured endpoints
 
@@ -337,8 +348,10 @@ Events captured:
 
 | Environment Variable | Purpose | Default |
 |---------------------|---------|---------|
-| `EIPC_HMAC_KEY` | Shared HMAC secret (plaintext) | (required) |
-| `EIPC_KEY_FILE` | Path to HMAC key file (alternative) | — |
+| `EIPC_HMAC_KEY` | Shared HMAC secret (plaintext) — global fallback; per-service keys preferred | (required) |
+| `EIPC_KEY_FILE` | Path to HMAC key file (alternative) — global fallback | — |
+| `EIPC_HMAC_KEY_<SERVICE>` | HMAC key for one service (`<SERVICE>` = service name upper-cased, `.`/`-`/`_` → `_`) | — |
+| `EIPC_KEY_FILE_<SERVICE>` | Path to one service's HMAC key file | — |
 | `EIPC_SESSION_TTL` | Session lifetime (Go duration) | `1h` |
 | `EIPC_MAX_CONNECTIONS` | Max concurrent connections | `64` |
 | `EIPC_TLS_CERT` | TLS certificate path | — |
