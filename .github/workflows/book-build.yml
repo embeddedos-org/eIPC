@@ -179,8 +179,9 @@ jobs:
           # setup -- so fancyhdr defined \chead first and scrlayer-scrpage's
           # \newcommand failed: "Command \chead already defined". Two header
           # packages, one command. In eIPC this job had never succeeded before
-          # the change (57 recorded runs, 2026-04-25 to 2026-11-15); the two
-          # failed runs whose logs still existed both died there (#70).
+          # the change (56 earlier runs, 2026-04-25 to 2026-11-15: skipped in
+          # 6, failed in 24, cancelled in 26); the two failed runs whose logs
+          # still existed both died there (#70).
           #
           # Not header-left=\leftmark: with it every page after the table of
           # contents was headed "Contents" -- the mark set there is never
