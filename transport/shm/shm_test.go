@@ -4,7 +4,10 @@
 package shm
 
 import (
+	"errors"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/embeddedos-org/eipc/protocol"
 )
@@ -90,5 +93,43 @@ func TestRingBufferName(t *testing.T) {
 	rb := NewRingBuffer(Config{Name: "my-region"})
 	if rb.Name() != "my-region" {
 		t.Errorf("expected name my-region, got %s", rb.Name())
+	}
+}
+
+func TestConnectionCloseUnblocksReceive(t *testing.T) {
+	txBuf := NewRingBuffer(Config{Name: "tx", BufferSize: 8192, SlotCount: 8})
+	rxBuf := NewRingBuffer(Config{Name: "rx", BufferSize: 8192, SlotCount: 8})
+	conn := NewConnection(txBuf, rxBuf, "shm://test")
+
+	// Nothing is ever written to rx, so Receive waits until Close.
+	done := make(chan error, 1)
+	go func() {
+		_, err := conn.Receive()
+		done <- err
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	if err := conn.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, net.ErrClosed) {
+			t.Fatalf("Receive after Close: got %v, want net.ErrClosed", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Receive still blocked 2s after Close")
+	}
+
+	if _, err := conn.Receive(); !errors.Is(err, net.ErrClosed) {
+		t.Errorf("Receive on a closed connection: got %v, want net.ErrClosed", err)
+	}
+	frame := &protocol.Frame{Version: 1, MsgType: 'h', Header: []byte(`{}`), Payload: []byte(`{}`)}
+	if err := conn.Send(frame); !errors.Is(err, net.ErrClosed) {
+		t.Errorf("Send on a closed connection: got %v, want net.ErrClosed", err)
+	}
+	if txBuf.Len() != 0 {
+		t.Errorf("Send on a closed connection wrote %d frame(s)", txBuf.Len())
 	}
 }
