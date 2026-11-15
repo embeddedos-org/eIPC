@@ -5,6 +5,7 @@ package shm
 
 import (
 	"fmt"
+	"net"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -168,6 +169,7 @@ type Connection struct {
 	rx     *RingBuffer
 	remote string
 	codec  protocol.Codec
+	closed atomic.Bool
 }
 
 // NewConnection creates a shared-memory connection using two ring buffers.
@@ -180,12 +182,23 @@ func NewConnection(tx, rx *RingBuffer, remote string) *Connection {
 	}
 }
 
+// Send writes frame to the tx ring buffer. After Close it fails with an
+// error wrapping net.ErrClosed.
 func (c *Connection) Send(frame *protocol.Frame) error {
+	if c.closed.Load() {
+		return c.errClosed()
+	}
 	return c.tx.Write(frame)
 }
 
+// Receive waits for the next frame on the rx ring buffer. It returns an
+// error wrapping net.ErrClosed once Close has been called, including when
+// Close is called while Receive is waiting.
 func (c *Connection) Receive() (*protocol.Frame, error) {
 	for {
+		if c.closed.Load() {
+			return nil, c.errClosed()
+		}
 		frame, err := c.rx.Read()
 		if err != nil {
 			return nil, err
@@ -197,8 +210,16 @@ func (c *Connection) Receive() (*protocol.Frame, error) {
 	}
 }
 
+// Close marks the connection closed: a Receive waiting on it returns,
+// and later Send and Receive calls fail. The ring buffers are left as
+// they are. Closing twice is not an error.
 func (c *Connection) Close() error {
+	c.closed.Store(true)
 	return nil
+}
+
+func (c *Connection) errClosed() error {
+	return fmt.Errorf("shm %s: %w", c.remote, net.ErrClosed)
 }
 
 // SetReadDeadline is a no-op: the ring buffer is in-process memory with
