@@ -76,7 +76,7 @@ conn := shm.NewConnection(txBuf, rxBuf, "eni.sensor")
 **Configuration**:
 ```bash
 # Server
-export EIPC_HMAC_KEY="your-32-byte-secret-key-here!!!"
+export EIPC_HMAC_KEY="your-32-byte-secret-key-here!!!!"
 export EIPC_LISTEN_ADDR="/tmp/eipc.sock"
 export EIPC_SESSION_TTL="1h"
 export EIPC_MAX_CONNECTIONS="16"
@@ -153,7 +153,7 @@ export EIPC_TLS_AUTO_CERT=true
 export EIPC_TLS_CERT=/etc/eipc/server.crt
 export EIPC_TLS_KEY=/etc/eipc/server.key
 
-export EIPC_HMAC_KEY="production-secret-key-32bytes!!"
+export EIPC_HMAC_KEY="production-secret-key-32bytes!!!"
 export EIPC_LISTEN_ADDR="0.0.0.0:9090"
 export EIPC_MAX_CONNECTIONS="128"
 ./eipc-server

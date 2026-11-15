@@ -17,6 +17,58 @@ This guide covers secure key management for EIPC deployments, including generati
 
 ---
 
+## Per-service keys
+
+The global key above (`EIPC_HMAC_KEY` / `EIPC_KEY_FILE`) is one secret
+shared by every service: a leak of that one value compromises every
+service's frames. Per-service keys give each service its own
+purpose-separated secret, so a leak is contained to the service it
+belongs to. They are loaded by `config.LoadHMACKeyForService(service)`
+and `config.LoadHMACKeys(services...)`.
+
+| Variable | Purpose |
+|----------|---------|
+| `EIPC_HMAC_KEY_<SERVICE>` | HMAC key for one service (env var) |
+| `EIPC_KEY_FILE_<SERVICE>` | Path to one service's key file |
+| `EIPC_HMAC_KEY` | Global key — fallback when a service has no per-service key |
+| `EIPC_KEY_FILE` | Global key file — fallback |
+
+`<SERVICE>` is the service name upper-cased with `.`, `-`, and `_`
+mapped to `_`: service `eipc-server` reads
+`EIPC_HMAC_KEY_EIPC_SERVER`; service `ebot.client` reads
+`EIPC_HMAC_KEY_EBOT_CLIENT`. Lookup order for a service is
+per-service env var → per-service key file → global key. Keys from any
+source must be at least 32 bytes — `LoadHMACKey` and
+`LoadHMACKeyForService` reject shorter keys at startup instead of
+handing a weak key to the endpoints. Key files may end with a newline;
+it is stripped on load.
+
+```bash
+# One key per service; the global key stays only as a fallback.
+export EIPC_HMAC_KEY_EIPC_SERVER="$(openssl rand -hex 32)"
+export EIPC_HMAC_KEY_EBOT_CLIENT="$(openssl rand -hex 32)"
+export EIPC_HMAC_KEY="$(openssl rand -hex 32)"  # fallback until migration completes
+```
+
+### Migration from the global key
+
+1. **Generate per-service keys now.** Set `EIPC_HMAC_KEY_<SERVICE>`
+   (or `EIPC_KEY_FILE_<SERVICE>`) for every service. The loaders
+   already prefer them; nothing else changes yet.
+2. **Keep the global key as fallback** while the endpoints are still
+   wired to the single global key (the follow-up wiring PR). A service
+   with no per-service key keeps working on the global key.
+3. **Remove the global key** once the endpoints load per-service keys:
+   unset `EIPC_HMAC_KEY` / `EIPC_KEY_FILE`. A service that then has no
+   key fails to start with an explicit error instead of silently
+   running unsecured.
+
+   Upgrade server and client together: a key file's trailing newline is
+   stripped on load, so the effective key changes when either side
+   upgrades — a mixed-version fleet will fail HMAC verification.
+
+---
+
 ## 1. Key Generation
 
 ### Using the Keyring API
@@ -48,7 +100,10 @@ go run -e 'import "crypto/rand"; import "encoding/hex"; import "fmt"; b := make(
 
 - Always use cryptographically secure random number generators (`crypto/rand`)
 - Never use predictable or human-readable passwords as HMAC keys
-- Minimum key size: 32 bytes for HMAC-SHA256, 32 bytes for AES-256
+- Minimum key size: 32 bytes for HMAC-SHA256, 32 bytes for AES-256.
+  The 32-byte HMAC minimum is enforced by `config.LoadHMACKey` /
+  `config.LoadHMACKeyForService`: a shorter key fails startup with an
+  error naming the length, instead of silently weakening the MAC.
 
 ---
 
@@ -57,7 +112,7 @@ go run -e 'import "crypto/rand"; import "encoding/hex"; import "fmt"; b := make(
 ### Environment Variables (Development)
 
 ```bash
-export EIPC_HMAC_KEY="your-32-byte-hex-key-here"
+export EIPC_HMAC_KEY="your-32-byte-hex-key-here-0000000"
 ```
 
 **Pros**: Simple, no file I/O.

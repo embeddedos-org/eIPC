@@ -1160,7 +1160,7 @@ make test             # Run all tests
 
 ```bash
 # Basic
-export EIPC_HMAC_KEY="your-32-byte-secret-key-here!!"
+export EIPC_HMAC_KEY="your-32-byte-secret-key-here!!!!"
 ./eipc-server
 
 # With custom address

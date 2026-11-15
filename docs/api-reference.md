@@ -512,7 +512,9 @@ Environment variable configuration loader.
 
 | Function | Env Var | Default | Description |
 |----------|---------|---------|-------------|
-| `LoadHMACKey()` | `EIPC_HMAC_KEY` or `EIPC_KEY_FILE` | (required) | Shared HMAC key |
+| `LoadHMACKey()` | `EIPC_HMAC_KEY` or `EIPC_KEY_FILE` | (required) | Shared HMAC key (global fallback; keys < 32 bytes rejected) |
+| `LoadHMACKeyForService(service)` | `EIPC_HMAC_KEY_<SERVICE>` or `EIPC_KEY_FILE_<SERVICE>`, falling back to the global key | (required) | Per-service HMAC key |
+| `LoadHMACKeys(services...)` | As `LoadHMACKeyForService`, per service | (required) | HMAC keys for several services, keyed by service name |
 | `LoadSessionTTL()` | `EIPC_SESSION_TTL` | `1h` | Session lifetime |
 | `LoadMaxConnections()` | `EIPC_MAX_CONNECTIONS` | `64` | Max concurrent connections |
 | `LoadListenAddr()` | `EIPC_LISTEN_ADDR` | `127.0.0.1:9090` | Server listen address |
