@@ -20,3 +20,7 @@ add_test(NAME test_chat_json COMMAND test_chat_json)
 add_executable(test_eipc_easy test_eipc_easy.c)
 target_link_libraries(test_eipc_easy eipc_easy)
 add_test(NAME test_eipc_easy COMMAND test_eipc_easy)
+
+add_executable(test_timestamp test_timestamp.c)
+target_link_libraries(test_timestamp eipc_c)
+add_test(NAME test_timestamp COMMAND test_timestamp)

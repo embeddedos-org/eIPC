@@ -15,9 +15,19 @@
 
 /* --------------- utility implementations --------------- */
 
+/* RFC 3339 UTC ("2026-11-17T09:30:00Z"): the form the Go endpoints
+ * write and read back with time.Parse(time.RFC3339Nano, ...). */
 void eipc_timestamp_now(char *buf, size_t buf_size) {
+    time_t now;
+    const struct tm *utc;
+
     if (!buf || buf_size == 0) return;
-    snprintf(buf, buf_size, "%llu", (unsigned long long)time(NULL));
+    buf[0] = '\0';
+    now = time(NULL);
+    utc = gmtime(&now);
+    if (!utc) return;
+    if (strftime(buf, buf_size, "%Y-%m-%dT%H:%M:%SZ", utc) == 0)
+        buf[0] = '\0';
 }
 
 void eipc_generate_request_id(char *buf, size_t buf_size) {
