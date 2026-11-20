@@ -42,6 +42,11 @@ type Connection interface {
 	Close() error
 }
 
+// maxEncodedFrameSize is the largest frame Frame.Encode can produce:
+// protocol.MaxFrameSize bounds the header and payload together, and the
+// encoded frame adds the fixed preamble and, when FlagHMAC is set, the MAC.
+const maxEncodedFrameSize = uint32(protocol.FrameFixedSize) + protocol.MaxFrameSize + uint32(protocol.MACSize)
+
 // ConnWrapper wraps a net.Conn with length-prefixed frame I/O.
 type ConnWrapper struct {
 	conn net.Conn
@@ -83,7 +88,7 @@ func (c *ConnWrapper) Receive() (*protocol.Frame, error) {
 		return nil, fmt.Errorf("read length: %w", err)
 	}
 	frameLen := binary.BigEndian.Uint32(lenBuf)
-	if frameLen > protocol.MaxFrameSize {
+	if frameLen > maxEncodedFrameSize {
 		return nil, fmt.Errorf("frame too large: %d bytes", frameLen)
 	}
 
