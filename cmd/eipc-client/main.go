@@ -156,6 +156,9 @@ func main() {
 	if err := json.Unmarshal(authResp.Payload, &authRes); err != nil {
 		log.Fatalf("unmarshal auth response: %v", err)
 	}
+	if authRes.Status != "ok" {
+		log.Fatalf("[AUTH] rejected: %s", authRes.Error)
+	}
 
 	sessionToken := authRes.SessionToken
 	// The session token is a credential: log only that auth succeeded
