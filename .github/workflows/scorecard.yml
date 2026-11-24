@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: ossf/scorecard-action@v2.6.0
+      - uses: ossf/scorecard-action@v2.5.0  # v2.6.0 image cannot be pulled from ghcr.io (2026-11-24)
         with:
           results_file: results.sarif
           results_format: sarif
