@@ -219,7 +219,7 @@ eipc_status_t eipc_transport_recv_frame(eipc_socket_t sock, eipc_frame_t *frame)
                 ((uint32_t)len_prefix[2] << 8) |
                 ((uint32_t)len_prefix[3]);
 
-    if (frame_len > EIPC_MAX_FRAME)
+    if (frame_len > EIPC_MAX_WIRE_FRAME)
         return EIPC_ERR_FRAME_TOO_LARGE;
 
     buf = (uint8_t *)malloc(frame_len);

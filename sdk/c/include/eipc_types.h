@@ -20,7 +20,7 @@ extern "C" {
 #define EIPC_MAGIC          0x45495043U  /* "EIPC" */
 #define EIPC_PROTOCOL_VER   1
 #define EIPC_MAC_SIZE       32           /* HMAC-SHA256 */
-#define EIPC_MAX_FRAME      (1U << 20)   /* 1 MB */
+#define EIPC_MAX_FRAME      (1U << 20)   /* 1 MB of header + payload */
 #define EIPC_MAX_ARGS       16
 #define EIPC_MAX_TOOL_ARGS  EIPC_MAX_ARGS
 #define EIPC_MAX_PAYLOAD    4096
@@ -116,14 +116,25 @@ typedef struct {
 
 #define EIPC_FRAME_FIXED_SIZE  16  /* 4+2+1+1+4+4 */
 
+/* Largest length-prefixed wire frame eipc_transport_recv_frame() accepts:
+ * EIPC_MAX_FRAME of header + payload, plus the fixed preamble and the MAC.
+ * This is the ceiling shared with the Go side: Go's protocol.MaxFrameSize
+ * bounds header + payload together at 1 MiB, and its transport adds the
+ * same 16-byte preamble and 32-byte MAC (transport/maxEncodedFrameSize),
+ * so a peer-legal max-size Go frame is 1,048,624 bytes on the wire. */
+#define EIPC_MAX_WIRE_FRAME  (EIPC_MAX_FRAME + EIPC_FRAME_FIXED_SIZE + \
+                              EIPC_MAC_SIZE)
+
 /* Largest byte string eipc_frame_encode() can produce from an eipc_frame_t:
  * the fixed preamble, the struct's own header and payload arrays, and the
  * optional MAC. Buffers that hold an encoded frame are sized by THIS, not by
  * EIPC_MAX_FRAME.
  *
- * EIPC_MAX_FRAME is the wire ceiling shared with the Go side. It is 1 MB, some
- * 200x what an eipc_frame_t can ever hold, so using it to size a local buffer
- * costs a megabyte of stack per call for no reachable benefit — and this SDK
+ * EIPC_MAX_FRAME bounds header + payload together (shared with Go's
+ * protocol.MaxFrameSize); it is NOT the wire ceiling — the wire ceiling is
+ * EIPC_MAX_WIRE_FRAME above. EIPC_MAX_FRAME is some 200x what an
+ * eipc_frame_t can ever hold, so using it to size a local buffer costs a
+ * megabyte of stack per call for no reachable benefit — and this SDK
  * cross-compiles for ARM Cortex-M4, where that is the whole device. */
 #define EIPC_FRAME_BUF_SIZE  (EIPC_FRAME_FIXED_SIZE + EIPC_MAX_HEADER + \
                               EIPC_MAX_PAYLOAD + EIPC_MAC_SIZE)

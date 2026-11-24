@@ -460,7 +460,8 @@ var (
 | Constant | Value | Description |
 |---|---|---|
 | `MagicBytes` | `0x45495043` | ASCII "EIPC" |
-| `MaxFrameSize` | 1 MB | Maximum frame size |
+| `MaxFrameSize` | 1 MB | Maximum header + payload size (1 MiB) |
+| Wire ceiling | 1,048,624 B | Largest length-prefixed wire frame: MaxFrameSize + 16 B preamble + 32 B MAC (C: `EIPC_MAX_WIRE_FRAME`) |
 | `MACSize` | 32 | HMAC-SHA256 output |
 | `ProtocolVersion` | 1 | Wire version |
 | `FlagHMAC` | `1<<0` | Frame carries HMAC |
