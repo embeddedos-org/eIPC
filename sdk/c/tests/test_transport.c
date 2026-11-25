@@ -7,9 +7,17 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <assert.h>
 #include "eipc_types.h"
 #include "eipc.h"
+
+#if !defined(_WIN32)
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <pthread.h>
+#include <unistd.h>
+#endif
 
 static int passed = 0;
 #define PASS(name) do { printf("[PASS] %s\n", name); passed++; } while(0)
@@ -142,6 +150,115 @@ static void test_transport_constants(void) {
     PASS("transport_constants");
 }
 
+static void test_wire_ceiling_constants(void) {
+    /* Shared with Go: MaxFrameSize (1 MiB header + payload) + 16-byte
+     * preamble + 32-byte MAC = 1,048,624 bytes on the wire
+     * (Go transport/maxEncodedFrameSize). */
+    assert(EIPC_MAX_WIRE_FRAME ==
+           EIPC_MAX_FRAME + EIPC_FRAME_FIXED_SIZE + EIPC_MAC_SIZE);
+    assert(EIPC_MAX_WIRE_FRAME == 1048624);
+    PASS("wire_ceiling_constants");
+}
+
+#if !defined(_WIN32)
+/* Writer thread: pushes a whole buffer into one end of a socketpair so the
+ * reader under test can drain it concurrently. A 1 MiB frame does not fit
+ * in a socket buffer, so a single-threaded write-then-read would deadlock. */
+struct writer_arg {
+    int fd;
+    const uint8_t *data;
+    size_t len;
+};
+
+static void *writer_thread(void *arg) {
+    struct writer_arg *w = (struct writer_arg *)arg;
+    size_t sent = 0;
+    while (sent < w->len) {
+        ssize_t n = send(w->fd, (const char *)(w->data + sent), w->len - sent, 0);
+        assert(n > 0);
+        sent += (size_t)n;
+    }
+    return NULL;
+}
+
+/* Build a length-prefixed wire frame: 4-byte big-endian length, then a valid
+ * empty-body preamble (magic, version 1, no flags, header_len = 0,
+ * payload_len = 0) followed by zero padding to the requested wire length.
+ * The padding is ignored by eipc_frame_decode; what this exercises is the
+ * receiver's length-prefix ceiling, not a 1 MiB payload — the C struct caps
+ * header at 1024 and payload at 4096, so the C side can never emit a
+ * max-size frame itself. */
+static uint8_t *build_wire_frame(uint32_t wire_len, size_t *out_total) {
+    uint8_t *buf = (uint8_t *)malloc((size_t)wire_len + 4);
+    assert(buf != NULL);
+    buf[0] = (uint8_t)(wire_len >> 24);
+    buf[1] = (uint8_t)(wire_len >> 16);
+    buf[2] = (uint8_t)(wire_len >> 8);
+    buf[3] = (uint8_t)wire_len;
+    memset(buf + 4, 0, wire_len);
+    buf[4] = 0x45; buf[5] = 0x49; buf[6] = 0x50; buf[7] = 0x43; /* "EIPC" */
+    buf[8] = 0; buf[9] = 1; /* protocol version 1 */
+    /* msg_type, flags, header_len, payload_len are all zero. */
+    *out_total = (size_t)wire_len + 4;
+    return buf;
+}
+
+/* A wire frame exactly at the shared ceiling (1 MiB header + payload worth
+ * of wire length) must be accepted: before the fix the receiver capped the
+ * length prefix at EIPC_MAX_FRAME (1 MiB) and rejected it with
+ * EIPC_ERR_FRAME_TOO_LARGE. */
+static void test_recv_frame_accepts_max_wire_length(void) {
+    int sv[2];
+    assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
+
+    size_t total = 0;
+    uint8_t *wire = build_wire_frame(EIPC_MAX_WIRE_FRAME, &total);
+    struct writer_arg warg = { sv[0], wire, total };
+    pthread_t writer;
+    assert(pthread_create(&writer, NULL, writer_thread, &warg) == 0);
+
+    eipc_frame_t frame;
+    memset(&frame, 0, sizeof(frame));
+    eipc_status_t rc = eipc_transport_recv_frame(sv[1], &frame);
+    assert(rc == EIPC_OK);
+    assert(frame.header_len == 0);
+    assert(frame.payload_len == 0);
+
+    pthread_join(writer, NULL);
+    free(wire);
+    close(sv[0]);
+    close(sv[1]);
+    PASS("recv_frame_accepts_max_wire_length");
+}
+
+/* One byte over the shared ceiling must be rejected before anything is
+ * allocated or read for the body — only the length prefix is sent. */
+static void test_recv_frame_rejects_one_byte_over_max_wire_length(void) {
+    int sv[2];
+    assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
+
+    uint8_t prefix[4];
+    uint32_t over = EIPC_MAX_WIRE_FRAME + 1;
+    prefix[0] = (uint8_t)(over >> 24);
+    prefix[1] = (uint8_t)(over >> 16);
+    prefix[2] = (uint8_t)(over >> 8);
+    prefix[3] = (uint8_t)over;
+    struct writer_arg warg = { sv[0], prefix, sizeof(prefix) };
+    pthread_t writer;
+    assert(pthread_create(&writer, NULL, writer_thread, &warg) == 0);
+
+    eipc_frame_t frame;
+    memset(&frame, 0, sizeof(frame));
+    eipc_status_t rc = eipc_transport_recv_frame(sv[1], &frame);
+    assert(rc == EIPC_ERR_FRAME_TOO_LARGE);
+
+    pthread_join(writer, NULL);
+    close(sv[0]);
+    close(sv[1]);
+    PASS("recv_frame_rejects_one_byte_over_max_wire_length");
+}
+#endif /* !defined(_WIN32) */
+
 int main(void) {
     printf("=== eipc Transport Tests ===\n");
     test_timestamp_now();
@@ -154,6 +271,13 @@ int main(void) {
     test_ack_json_roundtrip();
     test_kv_struct_sizes();
     test_transport_constants();
+    test_wire_ceiling_constants();
+#if !defined(_WIN32)
+    test_recv_frame_accepts_max_wire_length();
+    test_recv_frame_rejects_one_byte_over_max_wire_length();
+#else
+    printf("[SKIP] recv_frame wire-ceiling tests (POSIX socketpair only)\n");
+#endif
     printf("\n=== ALL %d TESTS PASSED ===\n", passed);
     return 0;
 }
