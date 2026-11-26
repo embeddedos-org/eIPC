@@ -157,7 +157,10 @@ func main() {
 		log.Fatalf("unmarshal auth response: %v", err)
 	}
 	if authRes.Status != "ok" {
-		log.Fatalf("[AUTH] rejected: %s", authRes.Error)
+		// The error text comes from the server, so it is quoted for the log
+		// sink: %q escapes newlines and terminal control characters that
+		// would otherwise let a crafted rejection forge log lines.
+		log.Fatalf("[AUTH] rejected: %q", authRes.Error)
 	}
 
 	sessionToken := authRes.SessionToken
