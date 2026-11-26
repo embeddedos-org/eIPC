@@ -49,6 +49,29 @@ jobs:
       - name: Test
         run: go test -race -count=1 ./...
 
+  # ── C SDK tests ───────────────────────────────────────────────────────
+  # The C SDK (sdk/c, CMake) has its own test suites — including the
+  # wire-ceiling tests from #84 — which no workflow ran before this job.
+  # Build type MUST stay Debug: the C tests are assert()-based, and
+  # asserts compile out under Release, making the tests vacuous.
+  # -DBUILD_TESTING=ON is required: sdk/c/CMakeLists.txt only adds the
+  # tests subdirectory when it (or EIPC_BUILD_TESTS) is set, and plain
+  # `cmake` leaves BUILD_TESTING undefined, so ctest would find nothing.
+  c-tests:
+    name: C SDK tests (Debug)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (Debug)
+        run: cmake -S sdk/c -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
   # ── Cross-compile all platforms ───────────────────────────────────────
   cross:
     name: Cross-compile binaries
