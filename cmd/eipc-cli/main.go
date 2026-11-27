@@ -7,7 +7,7 @@
 //
 //	eipc-cli send --addr HOST:PORT --type chat --payload '{"text":"hello"}'
 //	eipc-cli listen --addr HOST:PORT
-//	eipc-cli inspect --addr HOST:PORT
+//	eipc-cli ping --addr HOST:PORT
 package main
 
 import (
