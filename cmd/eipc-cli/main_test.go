@@ -21,6 +21,11 @@ func TestDocCommentListsRealCommands(t *testing.T) {
 	var docCmds []string
 	if f.Doc != nil {
 		for _, c := range f.Doc.List {
+			// Only the indented usage block ("//\teipc-cli <cmd> ..."); prose lines
+			// such as "eipc-cli is a debugging ..." are not commands.
+			if !strings.HasPrefix(c.Text, "//\t") {
+				continue
+			}
 			line := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
 			if strings.HasPrefix(line, "eipc-cli ") {
 				parts := strings.Fields(line)
